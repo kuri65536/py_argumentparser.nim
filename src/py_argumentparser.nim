@@ -23,7 +23,7 @@ type  # {{{1
 
   ActionExit* = enum  # {{{1
     help = 1
-    version = 2
+    version
 
   ArgumentType = enum  # {{{1
     argument_is_value = 0
@@ -87,6 +87,17 @@ proc initArgumentParser*(): ArgumentParser =  # {{{1
     var ret = ArgumentParser(actions: @[])
     return ret
 
+
+proc `$`*(opt: OptionBase): string =  # {{{1
+    if opt of OptionString:
+        return OptionString(opt).val
+    if opt of OptionInteger:
+        return $OptionInteger(opt).val
+    if opt of OptionFloat:
+        return $OptionFloat(opt).val
+    if opt of OptionBoolean:
+        return $OptionBoolean(opt).val
+    return "none"
 
 proc to_help(self: OptionsAction): string =  # {{{1
     var ret = ""

@@ -37,6 +37,7 @@ option float       | o | 1-4-1
 options merge      |   | see below
   record->range    | o | 3-1
 ]#
+import tables
 import unittest
 
 import py_argumentparser
@@ -134,6 +135,36 @@ test "@T1-4-1 can parse float":
 
     (opts, vals) = p.parse_known_args(@["--plus", "2.4", "2.5"])
     check opts.get_float("minus", -3.4) == -3.4
+
+test "@T2-1-1 parse_args":
+    var p = initArgumentParser()
+    p.add_argument("", "aaa", default = "aaa")
+    var opts = p.parse_args(@["--aaa", "aab"])
+    check opts.get_string("aaa", "") == "aab"
+
+    try:
+        discard p.parse_args(@["--plus", "2.4"])
+        assert false
+    except ValueError:
+        discard
+
+test "@T2-2-1 string `$`":
+    var p = initArgumentParser()
+    p.add_argument("1", "", default = "a")
+    p.add_argument("2", "", default = 1)
+    p.add_argument("3", "", default = 1.0)
+    p.add_argument("4", "", default = false)
+    var opts = p.parse_args(@["-1", "a",
+                              "-2", "2", "-3", "1.1", "-4"])
+    check opts.get_string("1", "") == "a"
+    check opts.get_integer("2", 0) == 2
+    check opts.get_float("3", 1.2) == 1.1
+    check opts.get_boolean("4", false) == true
+    check $opts["1"] == "a"
+    check $opts["2"] == "2"
+    check $opts["3"] == "1.1"
+    check $opts["4"] == "true"
+
 
 # end of file {{{1
 # vi: ft=nim:et:ts=4:fdm=marker:nowrap
