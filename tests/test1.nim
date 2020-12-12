@@ -117,12 +117,12 @@ test "@T1-4-1 can parse float":
     (opts, vals) = p.parse_known_args(@[])
     check opts.get_float("plus", -1.2) == 0.0
 
-    p.add_argument("m", "minus", default = int_nil)
+    p.add_argument("m", "minus", default = float_nil)
     (opts, vals) = p.parse_known_args(@["--minus", "2.2", "2.3"])
     check opts.get_float("minus", -3.3) == 2.2
 
     (opts, vals) = p.parse_known_args(@["--plus", "2.4", "2.5"])
-    check opts.get_float("minus", -3.4) == 3.4
+    check opts.get_float("minus", -3.4) == -3.4
 
 # end of file {{{1
 # vi: ft=nim:et:ts=4:fdm=marker:nowrap

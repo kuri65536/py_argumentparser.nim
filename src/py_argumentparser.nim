@@ -18,13 +18,6 @@ type  # {{{1
   float_or_nil* = ref object of RootObj  # {{{1
     value: float
 
-  OptionDestType* = enum  # {{{1
-    str_single = 0
-    integer
-    float
-    boolean
-    str_seq
-
   ActionResult* = enum  # {{{1
     ok = 0
 
@@ -40,7 +33,6 @@ type  # {{{1
   ActionFunc* = proc(key, val: string): ActionResult  # {{{1
 
   OptionsAction* = ref object of RootObj  # {{{1
-    dest_type: OptionDestType
     short_name: char
     long_name, dest_name: string
     action: ActionFunc
@@ -64,7 +56,7 @@ type  # {{{1
     actions: seq[OptionsAction]
 
   OptionBase* = ref object of RootObj  # {{{1
-    dest_type: OptionDestType
+    discard
 
   OptionString* = ref object of OptionBase  # {{{1
     val*: string
@@ -171,7 +163,7 @@ proc add_argument(self: ArgumentParser,  # seq[string] {{{1
 proc add_argument*(self: ArgumentParser,  # int {{{1
                    opt_short, opt_long: string, default: int_or_nil, dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionInteger(default: default, dest_type: OptionDestType.integer,
+    var act = OptionsActionInteger(default: default,
                                action: action, help_text: help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
     self.actions.add(act)
@@ -191,7 +183,7 @@ proc add_argument*(self: ArgumentParser,  # float {{{1
                    opt_short, opt_long: string, default: float_or_nil,
                    dest = "", action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionFloat(
-            default: default, dest_type: OptionDestType.float,
+            default: default,
             action: action, help_text: help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
     self.actions.add(act)
@@ -200,7 +192,7 @@ proc add_argument*(self: ArgumentParser,  # float {{{1
         act.action = action
 
 
-proc add_argument*(self: ArgumentParser,  # float
+proc add_argument*(self: ArgumentParser,  # float {{{1
                    opt_short, opt_long: string, default: float, dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
     add_argument(self, opt_short, opt_long, float_or_nil(value: default), dest,
@@ -211,7 +203,7 @@ proc add_argument*(self: ArgumentParser,  # bool {{{1
                    opt_short, opt_long: string, default: bool,
                    dest = "", nargs = 0,
                    action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionBoolean(action: action, dest_type: OptionDestType.boolean,
+    var act = OptionsActionBoolean(action: action,
                                 default: default, help_text: help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
     self.actions.add(act)
@@ -220,7 +212,7 @@ proc add_argument*(self: ArgumentParser,  # bool {{{1
 proc add_argument*(self: ArgumentParser,  # exit {{{1
                    opt_short, opt_long: string, default: ActionExit,
                    action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionBoolean(default: true, dest_type: OptionDestType.boolean,
+    var act = OptionsActionBoolean(default: true,
                                 help_text: help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, "")
     if isNil(action):
@@ -263,19 +255,22 @@ method set_default(self: OptionsActionInteger, opts: var Options): void =
     opts[self.dest_name] = OptionInteger(val: self.default.value)
 
 
+method set_default(self: OptionsActionFloat, opts: var Options): void =
+    if isNil(self.default):
+        return
+    opts[self.dest_name] = OptionFloat(val: self.default.value)
+
+
 method action_default(self: OptionsAction, opts: var Options,  # {{{1
                       val: string): void {.base.} =
     var name = self.dest_name
     if self of OptionsActionInteger:
-        opts[name] = OptionInteger(val: parseInt(val),
-                               dest_type: OptionDestType.integer)
+        opts[name] = OptionInteger(val: parseInt(val))
     elif self of OptionsActionFloat:
-        opts[name] = OptionFloat(val: parseFloat(val),
-                                 dest_type: OptionDestType.float)
+        opts[name] = OptionFloat(val: parseFloat(val))
     elif self of OptionsActionBoolean:
         var act = OptionsActionBoolean(self)
-        opts[name] = OptionBoolean(val: not act.default,
-                                dest_type: OptionDestType.boolean)
+        opts[name] = OptionBoolean(val: not act.default)
     #[ TODO(shimoda): not impemented, yet
     elif self of OptionsActionStrings:
         if not opts.hasKey(name):
@@ -300,7 +295,7 @@ method action_default(self: OptionsActionString, opts: var Options,
         var opt = OptionString(opts[name])
         opt.val = val
     else:
-        var opt = OptionString(val: val, dest_type: OptionDestType.str_single)
+        var opt = OptionString(val: val)
         opts.add(name, opt)
 
 
