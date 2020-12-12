@@ -273,19 +273,18 @@ method set_default(self: OptionsActionFloat, opts: var Options): void =
 
 
 method action_default(self: OptionsAction, opts: var Options,  # {{{1
-                      val: string): void {.base.} =
-    var name = self.dest_name
+                      key, val: string): void {.base.} =
     if self of OptionsActionInteger:
-        opts[name] = OptionInteger(val: parseInt(val))
+        opts[key] = OptionInteger(val: parseInt(val))
     elif self of OptionsActionFloat:
-        opts[name] = OptionFloat(val: parseFloat(val))
+        opts[key] = OptionFloat(val: parseFloat(val))
     elif self of OptionsActionBoolean:
         var act = OptionsActionBoolean(self)
-        opts[name] = OptionBoolean(val: not act.default)
+        opts[key] = OptionBoolean(val: not act.default)
     #[ TODO(shimoda): not impemented, yet
     elif self of OptionsActionStrings:
         if not opts.hasKey(name):
-            opts[name] = OptionStrings(vals: @[val],
+            opts[key] = OptionStrings(vals: @[val],
                                        dest_type: OptionDestType.str_seq)
         else:
             try:
@@ -297,7 +296,7 @@ method action_default(self: OptionsAction, opts: var Options,  # {{{1
 
 
 method action_default(self: OptionsActionString, opts: var Options,
-                      val: string): void =
+                      key, val: string): void =
     if len(self.choices) > 0:
         if not self.choices.contains(val):
             return
@@ -310,14 +309,13 @@ method action_default(self: OptionsActionString, opts: var Options,
         opts.add(name, opt)
 
 
-method parse_one(self: OptionsAction,
-                 value: string): OptionBase {.base.} =
-    discard
-
-
-method parse_one(self: OptionsActionBoolean,
-                 value: string): OptionBase =
-    discard
+proc run_action(self: OptionsAction, opts: var Options,  # {{{1
+                val: string): void =
+    var name = self.dest_name
+    if not isNil(self.action):
+        discard self.action(name, val)
+        return
+    self.action_default(opts, name, val)
 
 
 proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
@@ -354,7 +352,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                     if typ == 0:
                         continue
                     if typ == 1:
-                        i.action_default(ret1, $j)
+                        i.run_action(ret1, $j)
                     break  # skip options with value `ab` of like `-abc value`
             s_name = arg[^1 .. ^1]
 
@@ -403,14 +401,14 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
     var arg_opt: OptionsAction = nil
     for i in args:
         if not isNil(arg_opt):
-            arg_opt.action_default(ret1, i)
+            arg_opt.run_action(ret1, i)
             arg_opt = nil
             continue
         var (typ, act) = parse_one_arg(i)
         # echo "loop-check: ", typ, "-", i
         case typ:
         of argument_is_option_without_value:
-            act.action_default(ret1, "")
+            act.run_action(ret1, "")
         of argument_is_option_with_value:
             arg_opt = act
         else:
