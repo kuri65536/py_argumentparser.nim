@@ -107,6 +107,17 @@ test "@T1-3-1 can parse integer":
     (opts, vals) = p.parse_known_args(@[])
     check opts.get_integer("no-default", -4) == -4
 
+test "@T1-3-2 can parse combined opts":
+    var p = initArgumentParser()
+    p.add_argument("a", "", default=false)
+    p.add_argument("r", "", default=true)
+    p.add_argument("e", "", default = 0)
+    var (opts, vals) = p.parse_known_args(@["10", "-are", "10", "?"])
+    check vals == @["10", "?"]
+    check opts.get_boolean("a", false) == true
+    check opts.get_boolean("r", true) == false
+    check opts.get_integer("e", -1) == 10
+
 test "@T1-4-1 can parse float":
     var p = initArgumentParser()
     p.add_argument("", "plus", default = 0.0)

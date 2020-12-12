@@ -152,7 +152,7 @@ proc add_argument*(self: ArgumentParser,  # string {{{1
         act.action = action
 
 
-proc add_argument(self: ArgumentParser,  # seq[string] {{{1
+proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
                   opt_short, opt_long: string, default: seq[string],
                   dest = "", nargs = 0,
                   action: ActionFunc = nil): void =
@@ -343,7 +343,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                     if typ == 0:
                         continue
                     if typ == 1:
-                        return (argument_is_option_without_value, i)
+                        i.action_default(ret1, $j)
                     break  # skip options with value `ab` of like `-abc value`
             s_name = arg[^1 .. ^1]
 
