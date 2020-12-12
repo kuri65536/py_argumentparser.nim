@@ -326,9 +326,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
     for act in self.actions:
         act.set_default(ret1)
 
-    # debg("parse_args: long_no_vals: " & $longNoVals)
-
-    proc match_option(act: OptionsAction, s: char, l: string): int =  # {{{2
+    proc match_option(act: OptionsAction, s: char, l: string): int =  # {{{1
         if s != '\0' and s != act.short_name:
             return 0
         if len(l) > 0 and l != act.long_name:
@@ -337,7 +335,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
             return 1
         return 2
 
-    proc parse_one_arg(arg: string  # {{{2
+    proc parse_one_arg(arg: string  # {{{1
                        ): tuple[typ: ArgumentType, act: OptionsAction] =
         var s_name, l_name: string
         if arg.startsWith("--"):
@@ -369,35 +367,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                 continue
         return (argument_is_value, nil)
 
-
-    #[
-    help_parser = self  # pass self to action_help()
-    debg(fmt"parse_one_opt: got {key}-{val}")
-    for opt in self.actions:
-        wste(fmt"parse_one_opt:check {key} vs {opt.dest_name}")
-        if key == opt.long_name:
-            discard
-        elif len(key) == 1 and key[0] == opt.short_name:
-            discard
-        else:
-            continue
-        wste(fmt"parse_one_opt: captured {opt.dest_name}")
-        if opt.dest_type == ActionDest.boolean:
-            OptionsActionBool(opt).run_action_bool(opts, key, val)
-            continue
-        elif isNil(opt.action):
-            discard
-        else:
-            var ret = opt.action(key, val)
-            # TODO(shioda): check ret, now ok only.
-            continue
-
-        # default actions = just store
-        opt.action_default(opts, val)
-        break
-    ]#
-
-    # loop {{{2
+    # loop {{{1
     var arg_opt: OptionsAction = nil
     for i in args:
         if not isNil(arg_opt):
