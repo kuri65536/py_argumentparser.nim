@@ -52,7 +52,7 @@ type  # {{{1
     default: float_or_nil
 
   ArgumentParser* = ref object of RootObj  # {{{1
-    help_header*: string
+    usage, usage_optionals, usage_required: string
     actions: seq[OptionsAction]
 
   OptionBase* = ref object of RootObj  # {{{1
@@ -83,10 +83,32 @@ var int_nil*: int_or_nil = nil
 var float_nil*: float_or_nil = nil
 
 
-proc initArgumentParser*(): ArgumentParser =  # {{{1
-    var ret = ArgumentParser(actions: @[])
+proc initArgumentParser*(usage = ""): ArgumentParser =  # {{{1
+    var usage_msg = if len(usage) < 1: usage
+                    else:              "impl."
+    var ret = ArgumentParser(actions: @[],
+                             usage: usage)
     return ret
 
+
+proc parse_help_string(self: ArgumentParser, src: string): string =  # {{{1
+    discard
+
+
+proc print_help*(self: ArgumentParser): void =  # {{{1
+    echo self.parse_help_string(self.usage)
+
+    var optionals: seq[OptionsAction]
+    var required: seq[OptionsAction]
+
+    if len(optionals) > 0:
+        echo self.parse_help_string(self.usage_optionals)
+        for i in optionals:
+            echo self.parse_help_string(i.help_text)
+    if len(required) > 0:
+        echo self.parse_help_string(self.usage_required)
+        for i in required:
+            echo self.parse_help_string(i.help_text)
 
 proc `$`*(opt: OptionBase): string =  # {{{1
     if opt of OptionString:
@@ -111,12 +133,7 @@ proc to_help(self: OptionsAction): string =  # {{{1
 
 
 proc action_help*(key, val: string): ActionResult =  # {{{1
-    var head = help_parser.help_header
-    if len(head) < 1:
-        head = "exe"  # TODO(shimoda): get executable name
-    echo head
-    for act in help_parser.actions:
-        echo act.to_help()
+    help_parser.print_help()
     system.quit(1)
 
 
