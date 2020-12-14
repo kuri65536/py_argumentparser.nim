@@ -7,6 +7,7 @@ This Source Code Form is subject to the terms of the Mozilla Public License,
 v.2.0. If a copy of the MPL was not distributed with this file,
 You can obtain one at https://mozilla.org/MPL/2.0/.
 ]#
+import os
 import strformat
 import strutils
 import tables
@@ -410,6 +411,21 @@ proc parse_args*(self: ArgumentParser, args: seq[string]  # {{{1
     if len(ret2) > 0:
         raise newException(ValueError, "unknown arguments: " & $ret2)
     return ret1
+
+
+proc parse_known_args*(self: ArgumentParser  # {{{1
+                       ): tuple[opts: Options, args: seq[string]] =
+    var args: seq[string] = @[]
+    for i in countup(1, paramCount()):
+        args.add(paramStr(i).string)
+    return self.parse_known_args(args)
+
+
+proc parse_args*(self: ArgumentParser): Options =  # {{{1
+    var args: seq[string] = @[]
+    for i in countup(1, paramCount()):
+        args.add(paramStr(i).string)
+    return self.parse_args(args)
 
 
 proc get_string*(self: Options, name, default: string): string =  # {{{1
