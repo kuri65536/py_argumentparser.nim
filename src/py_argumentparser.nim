@@ -36,6 +36,7 @@ type  # {{{1
   OptionsAction* = ref object of RootObj  # {{{1
     short_name: char
     long_name, dest_name: string
+    required*: bool
     action: ActionFunc
     help_text: string
 
@@ -53,7 +54,9 @@ type  # {{{1
     default: float_or_nil
 
   ArgumentParser* = ref object of RootObj  # {{{1
-    usage, usage_optionals, usage_required: string
+    usage*, description*, epilog, usage_optionals*, usage_required: string
+    usage_version*: string
+    prog: string
     actions: seq[OptionsAction]
 
   OptionBase* = ref object of RootObj  # {{{1
@@ -92,35 +95,16 @@ proc initArgumentParser*(usage = ""): ArgumentParser =  # {{{1
     return ret
 
 
+proc help_init(self: ArgumentParser): void =  # {{{1
+    self.prog = os.getAppFilename()  # cache (I realy dont no for speed up)
+    help_parser = self
+
+
 proc parse_help_string(self: ArgumentParser, src: string): string =  # {{{1
-    discard
+    var ret = src
+    ret = ret.replace("%(prog)", self.prog)
+    return src
 
-
-proc print_help*(self: ArgumentParser): void =  # {{{1
-    echo self.parse_help_string(self.usage)
-
-    var optionals: seq[OptionsAction]
-    var required: seq[OptionsAction]
-
-    if len(optionals) > 0:
-        echo self.parse_help_string(self.usage_optionals)
-        for i in optionals:
-            echo self.parse_help_string(i.help_text)
-    if len(required) > 0:
-        echo self.parse_help_string(self.usage_required)
-        for i in required:
-            echo self.parse_help_string(i.help_text)
-
-proc `$`*(opt: OptionBase): string =  # {{{1
-    if opt of OptionString:
-        return OptionString(opt).val
-    if opt of OptionInteger:
-        return $OptionInteger(opt).val
-    if opt of OptionFloat:
-        return $OptionFloat(opt).val
-    if opt of OptionBoolean:
-        return $OptionBoolean(opt).val
-    return "none"
 
 proc to_help(self: OptionsAction): string =  # {{{1
     var ret = ""
@@ -133,12 +117,53 @@ proc to_help(self: OptionsAction): string =  # {{{1
     return ret
 
 
+proc print_help*(self: ArgumentParser): void =  # {{{1
+    echo self.parse_help_string(self.usage)
+    echo self.parse_help_string(self.description)
+
+    var optionals: seq[OptionsAction]
+    var required: seq[OptionsAction]
+
+    for act in self.actions:
+        if act.required:
+            required.add(act)
+        else:
+            optionals.add(act)
+
+    for tup in [(acts: required, msg: self.usage_required),
+                (acts: optionals, msg: self.usage_optionals)]:
+        if len(tup.acts) < 1:
+            continue
+        echo self.parse_help_string(tup.msg)
+        for i in tup.acts:
+            echo i.to_help()
+
+    echo self.parse_help_string(self.epilog)
+
+
+proc print_version*(self: ArgumentParser): void =  # {{{1
+    echo self.parse_help_string(self.usage_version)
+
+
+proc `$`*(opt: OptionBase): string =  # {{{1
+    if opt of OptionString:
+        return OptionString(opt).val
+    if opt of OptionInteger:
+        return $OptionInteger(opt).val
+    if opt of OptionFloat:
+        return $OptionFloat(opt).val
+    if opt of OptionBoolean:
+        return $OptionBoolean(opt).val
+    return "none"
+
+
 proc action_help*(key, val: string): ActionResult =  # {{{1
     help_parser.print_help()
     system.quit(1)
 
 
 proc action_version*(key, val: string): ActionResult =  # {{{1
+    help_parser.print_version()
     system.quit(1)
 
 
@@ -330,8 +355,13 @@ method action_default(self: OptionsActionString, opts: var Options,
 proc run_action(self: OptionsAction, opts: var Options,  # {{{1
                 val: string): void =
     var name = self.dest_name
-    if not isNil(self.action):
-        discard self.action(name, val)
+    if isNil(self.action):
+        discard
+    elif self.short_name != '\0':
+        discard self.action("-" & $self.short_name, val)
+        return
+    else:
+        discard self.action("--" & self.long_name, val)
         return
     self.action_default(opts, name, val)
 
@@ -343,6 +373,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
 
     for act in self.actions:
         act.set_default(ret1)
+    self.help_init()
 
     proc match_option(act: OptionsAction, s: char, l: string): int =  # {{{1
         if s != '\0' and s != act.short_name:
