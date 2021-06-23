@@ -167,17 +167,9 @@ proc action_version*(key, val: string): ActionResult =  # {{{1
     system.quit(1)
 
 
-proc set_opt_name(self: var OptionsAction, short, long, dest: string  # {{{1
-                  ): void =
-    self.short_name = '\0'
-    if len(short) < 1:
-        discard
-    elif len(short) == 1:
-        self.short_name = short[0]
-    elif short.startsWith("-"):
-        self.short_name = short[1]
-    else:
-        assert false
+proc set_opt_name(self: var OptionsAction, short: char,  # {{{1
+                  long, dest: string): void =
+    self.short_name = short
 
     self.long_name = if long.startsWith("--"): long[2..^1]
                      else:                     long
@@ -192,7 +184,7 @@ proc set_opt_name(self: var OptionsAction, short, long, dest: string  # {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # string {{{1
-                  opt_short, opt_long: string, default = "", dest = "",
+                   opt_short: char, opt_long: string, default = "", dest = "",
                   choices: seq[string] = @[], nargs = 0,
                   action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionString(action: action, help_text: help_text,
@@ -215,7 +207,7 @@ proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short, opt_long: string, default: int_or_nil, dest = "",
+                   opt_short: char, opt_long: string, default: int_or_nil, dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionInteger(default: default,
                                action: action, help_text: help_text)
@@ -227,14 +219,14 @@ proc add_argument*(self: ArgumentParser,  # int {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short, opt_long: string, default: int, dest = "",
+                   opt_short: char, opt_long: string, default: int, dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
     add_argument(self, opt_short, opt_long, int_or_nil(value: default), dest,
                  action, help_text)
 
 
 proc add_argument*(self: ArgumentParser,  # float {{{1
-                   opt_short, opt_long: string, default: float_or_nil,
+                   opt_short: char, opt_long: string, default: float_or_nil,
                    dest = "", action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionFloat(
             default: default,
@@ -247,14 +239,15 @@ proc add_argument*(self: ArgumentParser,  # float {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # float {{{1
-                   opt_short, opt_long: string, default: float, dest = "",
+                   opt_short: char, opt_long: string, default: float,
+                   dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
     add_argument(self, opt_short, opt_long, float_or_nil(value: default), dest,
                  action, help_text)
 
 
 proc add_argument*(self: ArgumentParser,  # bool {{{1
-                   opt_short, opt_long: string, default: bool,
+                   opt_short: char, opt_long: string, default: bool,
                    dest = "", nargs = 0,
                    action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionBoolean(action: action,
@@ -264,7 +257,7 @@ proc add_argument*(self: ArgumentParser,  # bool {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # exit {{{1
-                   opt_short, opt_long: string, default: ActionExit,
+                   opt_short: char, opt_long: string, default: ActionExit,
                    action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionBoolean(default: true,
                                 help_text: help_text)
