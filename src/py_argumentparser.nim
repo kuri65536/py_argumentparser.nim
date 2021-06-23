@@ -478,6 +478,10 @@ proc get_string*(self: Options, name: string,  # {{{1
     return tmp.val
 
 
+proc get_string*(self: Options, name: string): string =  # {{{1
+    return self.get_string(name, none(string))
+
+
 proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
     if self.hasKey(name):
         var tmp = OptionBoolean(self[name])
