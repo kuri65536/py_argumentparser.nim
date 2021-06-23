@@ -37,6 +37,7 @@ option float       | o | 1-4-1
 options merge      |   | see below
   record->range    | o | 3-1
 ]#
+import options
 import tables
 import unittest
 
@@ -44,59 +45,59 @@ import py_argumentparser
 
 test "T1-1-1 can parse boolean options(short)":
     var p = initArgumentParser()
-    p.add_argument("b", "", default=false)
+    p.add_argument('b', "", default=false)
     var (opts, vals) = p.parse_known_args(@["-a", "-b", "-c"])
     check vals == @["-a", "-c"]
     check opts.get_boolean("b", false) == true
 
-    p.add_argument("-a", "", default=false)
+    p.add_argument('a', "", default=false)
     (opts, vals) = p.parse_known_args(@["-a", "-b", "-c"])
     check vals == @["-c"]
     check opts.get_boolean("a", false) == true
 
 test "T1-1-2 can parse boolean options(long)":
     var p = initArgumentParser()
-    p.add_argument("", "bonus", default=false)
+    p.add_argument('\0', "bonus", default=false)
     var (opts, vals) = p.parse_known_args(@["--my", "--bonus", "--canceled"])
     check vals == @["--my", "--canceled"]
     check opts.get_boolean("bonus", false) == true
 
-    p.add_argument("", "--my", default=false)
+    p.add_argument('\0', "--my", default=false)
     (opts, vals) = p.parse_known_args(@["--my", "--bonus", "--canceled"])
     check vals == @["--canceled"]
     check opts.get_boolean("my", false) == true
 
-    p.add_argument("", "--canceled", dest="not", default=false)
+    p.add_argument('\0', "--canceled", dest="not", default=false)
     (opts, vals) = p.parse_known_args(@["--my", "--bonus", "--canceled"])
     check len(vals) < 1
     check opts.get_boolean("not", false) == true
 
 test "T1-2-1 can parse string options":
     var p = initArgumentParser()
-    p.add_argument("", "test", default="abc")
+    p.add_argument('\0', "test", default="abc")
     var (opts, vals) = p.parse_known_args(@["--no", "--test", "--no", "--life"])
     check vals == @["--no", "--life"]
-    check opts.get_string("test", "") == "--no"
+    check opts.get_string("test") == "--no"
 
     (opts, vals) = p.parse_known_args(@["--life"])
     check vals == @["--life"]
-    check opts.get_string("test", "") == "abc"
+    check opts.get_string("test") == "abc"
 
 test "T1-2-2 can parse string from choices":
     var p = initArgumentParser()
-    p.add_argument("", "no", default="",
+    p.add_argument('\0', "no", default=none(string),
                    choices = @["air", "--test", "food"])
     var (opts, vals) = p.parse_known_args(@["--no", "--test"])
     check len(vals) < 1
-    check opts.get_string("no", "") == "--test"
+    check opts.get_string("no") == "--test"
 
     # outside of choices
     (opts, vals) = p.parse_known_args(@["--no", "from choice"])
-    check opts.get_string("no", "") == "air"
+    check opts.get_string("no") == "air"
 
 test "T1-3-1 can parse integer":
     var p = initArgumentParser()
-    p.add_argument("", "this-num", default = -1)
+    p.add_argument('\0', "this-num", default = -1)
     var (opts, vals) = p.parse_known_args(@["show", "--this-num", "123"])
     check vals == @["show"]
     check opts.get_integer("this-num", -2) == 123
@@ -104,15 +105,15 @@ test "T1-3-1 can parse integer":
     (opts, vals) = p.parse_known_args(@["no num were presented"])
     check opts.get_integer("this-num", -3) == -1
 
-    p.add_argument("d", "no-default", default = int_nil)
+    p.add_argument('d', "no-default", default = none(int))
     (opts, vals) = p.parse_known_args(@[])
     check opts.get_integer("no-default", -4) == -4
 
 test "T1-3-2 can parse combined opts":
     var p = initArgumentParser()
-    p.add_argument("a", "", default=false)
-    p.add_argument("r", "", default=true)
-    p.add_argument("e", "", default = 0)
+    p.add_argument('a', "", default=false)
+    p.add_argument('r', "", default=true)
+    p.add_argument('e', "", default = 0)
     var (opts, vals) = p.parse_known_args(@["10", "-are", "10", "?"])
     check vals == @["10", "?"]
     check opts.get_boolean("a", false) == true
@@ -121,7 +122,7 @@ test "T1-3-2 can parse combined opts":
 
 test "T1-4-1 can parse float":
     var p = initArgumentParser()
-    p.add_argument("", "plus", default = 0.0)
+    p.add_argument('\0', "plus", default = 0.0)
     var (opts, vals) = p.parse_known_args(@["--plus", "1.1", "1.2"])
     check vals == @["1.2"]
     check opts.get_float("plus", -1.1) == 1.1
@@ -129,7 +130,7 @@ test "T1-4-1 can parse float":
     (opts, vals) = p.parse_known_args(@[])
     check opts.get_float("plus", -1.2) == 0.0
 
-    p.add_argument("m", "minus", default = float_nil)
+    p.add_argument('m', "minus", default = none(float))
     (opts, vals) = p.parse_known_args(@["--minus", "2.2", "2.3"])
     check opts.get_float("minus", -3.3) == 2.2
 
@@ -138,9 +139,9 @@ test "T1-4-1 can parse float":
 
 test "T2-1-1 parse_args":
     var p = initArgumentParser()
-    p.add_argument("", "aaa", default = "aaa")
+    p.add_argument('\0', "aaa", default = "aaa")
     var opts = p.parse_args(@["--aaa", "aab"])
-    check opts.get_string("aaa", "") == "aab"
+    check opts.get_string("aaa") == "aab"
 
     try:
         discard p.parse_args(@["--plus", "2.4"])
@@ -155,10 +156,10 @@ test "T2-1-2 actions":
         ans.add(val)
 
     var p = initArgumentParser()
-    p.add_argument("1", "", default = "a", action=t_1)
-    p.add_argument("2", "", default = 1, action=t_1)
-    p.add_argument("3", "", default = 1.0, action=t_1)
-    p.add_argument("4", "", default = false, action=t_1)
+    p.add_argument('1', "", default = "a", action=t_1)
+    p.add_argument('2', "", default = 1, action=t_1)
+    p.add_argument('3', "", default = 1.0, action=t_1)
+    p.add_argument('4', "", default = false, action=t_1)
     var opts = p.parse_args(@["-1", "a",
                               "-2", "2", "-3", "1.1", "-4"])
     check ans[0] == "a"
@@ -168,13 +169,13 @@ test "T2-1-2 actions":
 
 test "T2-2-1 string `$`":
     var p = initArgumentParser()
-    p.add_argument("1", "", default = "a")
-    p.add_argument("2", "", default = 1)
-    p.add_argument("3", "", default = 1.0)
-    p.add_argument("4", "", default = false)
+    p.add_argument('1', "", default = "a")
+    p.add_argument('2', "", default = 1)
+    p.add_argument('3', "", default = 1.0)
+    p.add_argument('4', "", default = false)
     var opts = p.parse_args(@["-1", "a",
                               "-2", "2", "-3", "1.1", "-4"])
-    check opts.get_string("1", "") == "a"
+    check opts.get_string("1") == "a"
     check opts.get_integer("2", 0) == 2
     check opts.get_float("3", 1.2) == 1.1
     check opts.get_boolean("4", false) == true
