@@ -8,17 +8,12 @@ v.2.0. If a copy of the MPL was not distributed with this file,
 You can obtain one at https://mozilla.org/MPL/2.0/.
 ]#
 import os
+import options
 import strformat
 import strutils
 import tables
 
 type  # {{{1
-  int_or_nil* = ref object of RootObj  # {{{1
-    value: int
-
-  float_or_nil* = ref object of RootObj  # {{{1
-    value: float
-
   ActionResult* = enum  # {{{1
     ok = 0
 
@@ -41,17 +36,18 @@ type  # {{{1
     help_text: string
 
   OptionsActionString* = ref object of OptionsAction  # {{{1
-    default: string
+    default: Option[string]
     choices: seq[string]
 
   OptionsActionBoolean* = ref object of OptionsAction  # {{{1
-    default: bool
+    default: Option[bool]
+
 
   OptionsActionInteger* = ref object of OptionsAction  # {{{1
-    default: int_or_nil
+    default: Option[int]
 
   OptionsActionFloat* = ref object of OptionsAction  # {{{1
-    default: float_or_nil
+    default: Option[float]
 
   ArgumentParser* = ref object of RootObj  # {{{1
     usage*, description*, epilog, usage_optionals*, usage_required: string
@@ -83,8 +79,6 @@ type  # {{{1
 
 
 var help_parser: ArgumentParser = nil
-var int_nil*: int_or_nil = nil
-var float_nil*: float_or_nil = nil
 
 
 proc initArgumentParser*(usage = ""): ArgumentParser =  # {{{1
@@ -184,8 +178,8 @@ proc set_opt_name(self: var OptionsAction, short: char,  # {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # string {{{1
-                   opt_short: char, opt_long: string, default = "", dest = "",
-                  choices: seq[string] = @[], nargs = 0,
+                   opt_short: char, opt_long: string, default: Option[string],
+                   dest = "", choices: seq[string] = @[], nargs = 0,
                   action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionString(action: action, help_text: help_text,
                                   default: default)
@@ -198,6 +192,14 @@ proc add_argument*(self: ArgumentParser,  # string {{{1
         act.action = action
 
 
+proc add_argument*(self: ArgumentParser,  # string-2 {{{1
+                   opt_short: char, opt_long, default: string, dest = "",
+                   choices: seq[string] = @[],
+                   action: ActionFunc = nil, help_text = ""): void =
+    self.add_argument(opt_short, opt_long, some(default), dest,
+                      choices, 0, action, help_text)
+
+
 proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
                   opt_short, opt_long: string, default: seq[string],
                   dest = "", nargs = 0,
@@ -207,7 +209,7 @@ proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short: char, opt_long: string, default: int_or_nil, dest = "",
+                   opt_short: char, opt_long: string, default: Option[int], dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionInteger(default: default,
                                action: action, help_text: help_text)
@@ -219,14 +221,15 @@ proc add_argument*(self: ArgumentParser,  # int {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short: char, opt_long: string, default: int, dest = "",
+                   opt_short: char, opt_long: string, default: int,
+                   dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
-    add_argument(self, opt_short, opt_long, int_or_nil(value: default), dest,
+    add_argument(self, opt_short, opt_long, some(default), dest,
                  action, help_text)
 
 
 proc add_argument*(self: ArgumentParser,  # float {{{1
-                   opt_short: char, opt_long: string, default: float_or_nil,
+                   opt_short: char, opt_long: string, default: Option[float],
                    dest = "", action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionFloat(
             default: default,
@@ -242,12 +245,12 @@ proc add_argument*(self: ArgumentParser,  # float {{{1
                    opt_short: char, opt_long: string, default: float,
                    dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
-    add_argument(self, opt_short, opt_long, float_or_nil(value: default), dest,
+    add_argument(self, opt_short, opt_long, some(default), dest,
                  action, help_text)
 
 
 proc add_argument*(self: ArgumentParser,  # bool {{{1
-                   opt_short: char, opt_long: string, default: bool,
+                   opt_short: char, opt_long: string, default: Option[bool],
                    dest = "", nargs = 0,
                    action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionBoolean(action: action,
@@ -256,10 +259,17 @@ proc add_argument*(self: ArgumentParser,  # bool {{{1
     self.actions.add(act)
 
 
+proc add_argument*(self: ArgumentParser,  # bool {{{1
+                   opt_short: char, opt_long: string, default: bool,
+                   dest = "", action: ActionFunc = nil, help_text = ""): void =
+    self.add_argument(opt_short, opt_long, some(default),
+                      dest, 0, action, help_text)
+
+
 proc add_argument*(self: ArgumentParser,  # exit {{{1
                    opt_short: char, opt_long: string, default: ActionExit,
                    action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionBoolean(default: true,
+    var act = OptionsActionBoolean(default: some(true),
                                 help_text: help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, "")
     if isNil(action):
@@ -276,8 +286,8 @@ method set_default(self: OptionsAction, opts: var Options): void {.base.} =  # {
 
 method set_default(self: OptionsActionString, opts: var Options): void =
     var (name, val) = (self.dest_name, "")
-    if len(self.default) > 0:
-        val = self.default
+    if self.default.isSome:
+        val = self.default.get()
     elif len(self.choices) > 0:
         val = self.choices[0]
     else:
@@ -286,26 +296,26 @@ method set_default(self: OptionsActionString, opts: var Options): void =
     if len(opts) > 1 and opts.hasKey(name):
         # info(fmt"set_default(override): {self.default} => {name}")
         var opt = OptionString(opts[name])
-        opt.val = self.default
+        opt.val = self.default.get()
     else:
         # info(fmt"set_default: {self.default} => {name}")
         opts.add(name, OptionString(val: val))
 
 
 method set_default(self: OptionsActionBoolean, opts: var Options): void =
-    opts[self.dest_name] = OptionBoolean(val: self.default)
+    opts[self.dest_name] = OptionBoolean(val: self.default.get())
 
 
 method set_default(self: OptionsActionInteger, opts: var Options): void =
-    if isNil(self.default):
+    if self.default.isNone:
         return
-    opts[self.dest_name] = OptionInteger(val: self.default.value)
+    opts[self.dest_name] = OptionInteger(val: self.default.get())
 
 
 method set_default(self: OptionsActionFloat, opts: var Options): void =
-    if isNil(self.default):
+    if self.default.isNone:
         return
-    opts[self.dest_name] = OptionFloat(val: self.default.value)
+    opts[self.dest_name] = OptionFloat(val: self.default.get())
 
 
 method action_default(self: OptionsAction, opts: var Options,  # {{{1
@@ -316,7 +326,7 @@ method action_default(self: OptionsAction, opts: var Options,  # {{{1
         opts[key] = OptionFloat(val: parseFloat(val))
     elif self of OptionsActionBoolean:
         var act = OptionsActionBoolean(self)
-        opts[key] = OptionBoolean(val: not act.default)
+        opts[key] = OptionBoolean(val: not act.default.get())
     #[ TODO(shimoda): not impemented, yet
     elif self of OptionsActionStrings:
         if not opts.hasKey(name):
@@ -452,11 +462,14 @@ proc parse_args*(self: ArgumentParser): Options =  # {{{1
     return self.parse_args(args)
 
 
-proc get_string*(self: Options, name, default: string): string =  # {{{1
-    if self.hasKey(name):
-        var tmp = OptionString(self[name])
-        return tmp.val
-    return default
+proc get_string*(self: Options, name: string,  # {{{1
+                 default: Option[string]): string =
+    if not self.hasKey(name):
+        if default.isSome:
+            return default.get()
+        raise newException(KeyError,
+                           fmt"{name} has no-default and not specified.")
+    return default.get()
 
 
 proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
