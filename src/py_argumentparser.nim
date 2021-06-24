@@ -469,38 +469,78 @@ proc parse_args*(self: ArgumentParser): Options =  # {{{1
 
 proc get_string*(self: Options, name: string,  # {{{1
                  default: Option[string]): string =
-    if not self.hasKey(name):
-        if default.isSome:
-            return default.get()
-        raise newException(KeyError,
-                           fmt"{name} has no-default and not specified.")
-    var tmp = OptionString(self[name])
-    return tmp.val
+    if self.hasKey(name):
+        var tmp = OptionString(self[name])
+        return tmp.val
+    if default.isSome:
+        return default.get()
+    raise newException(KeyError,
+                       fmt"{name} has no-default and not specified.")
+
+
+proc get_string*(self: Options, name, default: string): string =  # {{{1
+    return self.get_string(name, some(default))
 
 
 proc get_string*(self: Options, name: string): string =  # {{{1
     return self.get_string(name, none(string))
 
 
-proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
+proc get_boolean*(self: Options, name: string, default: Option[bool]  # {{{1
+                  ): bool =
     if self.hasKey(name):
         var tmp = OptionBoolean(self[name])
         return tmp.val
-    return default
+    if default.isSome:
+        return default.get()
+    raise newException(KeyError,
+                       fmt"{name} has no-default and not specified.")
 
 
-proc get_integer*(self: Options, name: string, default: int): int =  # {{{1
+proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
+    return self.get_boolean(name, some(default))
+
+
+proc get_boolean*(self: Options, name: string): bool =  # {{{1
+    return self.get_boolean(name, none(bool))
+
+
+proc get_integer*(self: Options, name: string, default: Option[int]  # {{{1
+                  ): int =
     if self.hasKey(name):
         var tmp = OptionInteger(self[name])
         return tmp.val
-    return default
+    if default.isSome:
+        return default.get()
+    raise newException(KeyError,
+                       fmt"{name} has no-default and not specified.")
 
 
-proc get_float*(self: Options, name: string, default: float): float =  # {{{1
+proc get_integer*(self: Options, name: string, default: int): int =  # {{{1
+    return self.get_integer(name, some(default))
+
+
+proc get_integer*(self: Options, name: string): int =  # {{{1
+    return self.get_integer(name, none(int))
+
+
+proc get_float*(self: Options, name: string, default: Option[float]  # {{{1
+                ): float =
     if self.hasKey(name):
         var tmp = OptionFloat(self[name])
         return tmp.val
-    return default
+    if default.isSome:
+        return default.get()
+    raise newException(KeyError,
+                       fmt"{name} has no-default and not specified.")
+
+
+proc get_float*(self: Options, name: string, default: float): float =  # {{{1
+    return self.get_float(name, some(default))
+
+
+proc get_float*(self: Options, name: string): float =  # {{{1
+    return self.get_float(name, none(float))
 
 
 # end of file {{{1
