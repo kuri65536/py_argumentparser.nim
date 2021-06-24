@@ -160,12 +160,20 @@ test "T2-1-2 actions":
     p.add_argument('2', "", default = 1, action=t_1)
     p.add_argument('3', "", default = 1.0, action=t_1)
     p.add_argument('4', "", default = false, action=t_1)
+    p.add_argument('5', "", action=t_1)
     var opts = p.parse_args(@["-1", "a",
-                              "-2", "2", "-3", "1.1", "-4"])
+                              "-2", "2", "-3", "1.1", "-4", "-5", "none"])
     check ans[0] == "a"
     check ans[1] == "2"
     check ans[2] == "1.1"
     check ans[3] == ""  # no-argument
+    check ans[4] == "none"  # no-argument
+
+    check opts.get_string("1") == "a"
+    check opts.get_integer("2") == 1
+    check opts.get_float("3") == 1.0
+    check opts.get_boolean("4") == false
+
 
 test "T2-2-1 string `$`":
     var p = initArgumentParser()
