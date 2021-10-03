@@ -34,6 +34,7 @@ type  # {{{1
     required*: bool
     action: ActionFunc
     help_text: string
+    without_value: bool
 
   OptionsActionString* = ref object of OptionsAction  # {{{1
     default: Option[string]
@@ -181,7 +182,8 @@ proc set_opt_name(self: var OptionsAction, short: char,  # {{{1
 proc add_argument*(self: ArgumentParser,  # action only {{{1
                    opt_short: char, opt_long: string, dest = "", nargs = 1,
                    action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsAction(action: action, help_text: help_text)
+    var act = OptionsAction(action: action, help_text: help_text,
+                            without_value: nargs < 1)
     self.actions.add(act)
     act.set_opt_name(opt_short, opt_long, dest)
 
@@ -384,14 +386,17 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
         act.set_default(ret1)
     self.help_init()
 
-    proc match_option(act: OptionsAction, s: char, l: string): int =  # {{{1
+    proc match_option(act: OptionsAction,  # {{{1
+                      s: char, l: string): ArgumentType =
         if s not_in invalid_short_names and s != act.short_name:
-            return 0
+            return argument_is_value
         if len(l) > 0 and l != act.long_name:
-            return 0
+            return argument_is_value
         if act of OptionsActionBoolean:
-            return 1
-        return 2
+            return argument_is_option_without_value
+        if act.without_value:
+            return argument_is_option_without_value
+        return argument_is_option_with_value
 
     proc parse_one_arg(arg: string  # {{{1
                        ): tuple[typ: ArgumentType, act: OptionsAction] =
@@ -405,9 +410,9 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
             for j in s_name:
                 for i in self.actions:
                     var typ = match_option(i, j, "")
-                    if typ == 0:
+                    if typ == argument_is_value:
                         continue
-                    if typ == 1:
+                    if typ == argument_is_option_without_value:
                         i.run_action(ret1, $j)
                     break  # skip options with value `ab` of like `-abc value`
             s_name = arg[^1 .. ^1]
@@ -416,13 +421,8 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                     else:               s_name[0]
         for i in self.actions:
             var n = match_option(i, short, l_name)
-            case n:
-            of 1:
-                return (argument_is_option_without_value, i)
-            of 2:
-                return (argument_is_option_with_value, i)
-            else:  # 0
-                continue
+            if n == argument_is_value: continue
+            return (n, i)
         return (argument_is_value, nil)
 
     # loop {{{1
