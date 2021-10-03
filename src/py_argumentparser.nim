@@ -79,6 +79,7 @@ type  # {{{1
 
 
 var help_parser: ArgumentParser = nil
+let invalid_short_names = ['\0', ' ']
 
 
 proc initArgumentParser*(usage = ""): ArgumentParser =  # {{{1
@@ -102,7 +103,7 @@ proc parse_help_string(self: ArgumentParser, src: string): string =  # {{{1
 
 proc to_help(self: OptionsAction): string =  # {{{1
     var ret = ""
-    if self.short_name != '\0':
+    if self.short_name not_in invalid_short_names:
         ret = fmt"-{self.short_name}"
     if len(self.long_name) > 0:
         if len(ret) > 0: ret = ret & ", "
@@ -171,7 +172,7 @@ proc set_opt_name(self: var OptionsAction, short: char,  # {{{1
                else:             self.long_name
     if name.startsWith("--"):
         name = name[2..^1]
-    if len(name) < 1 and self.short_name != '\0':
+    if len(name) < 1 and self.short_name not_in invalid_short_names:
         name = $self.short_name
     self.dest_name = name
     # echo fmt"set_opt_name: {self.dest_name} <= {short}, {long}"
@@ -365,7 +366,7 @@ proc run_action(self: OptionsAction, opts: var Options,  # {{{1
     var name = self.dest_name
     if isNil(self.action):
         discard
-    elif self.short_name != '\0':
+    elif self.short_name not_in invalid_short_names:
         discard self.action("-" & $self.short_name, val)
         return
     else:
@@ -384,7 +385,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
     self.help_init()
 
     proc match_option(act: OptionsAction, s: char, l: string): int =  # {{{1
-        if s != '\0' and s != act.short_name:
+        if s not_in invalid_short_names and s != act.short_name:
             return 0
         if len(l) > 0 and l != act.long_name:
             return 0
@@ -411,7 +412,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                     break  # skip options with value `ab` of like `-abc value`
             s_name = arg[^1 .. ^1]
 
-        var short = if len(s_name) <= 0: '\0'
+        var short = if len(s_name) <= 0: invalid_short_names[0]
                     else:               s_name[0]
         for i in self.actions:
             var n = match_option(i, short, l_name)
