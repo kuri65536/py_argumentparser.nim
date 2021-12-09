@@ -1,12 +1,39 @@
-#[
-## license
+##[
+py_argumentparser.nim
+---------------------------
+a yet another options parser instead of nim default `parseopt`.
+
+- python like api, not compatible with nim's parseopt.
+- but strict type checking with nim language.
+- simply example:
+
+.. code-block:: nim
+
+  import py_argumentparser
+  var parser = initArgumentParser()
+  parser.add_argument('t', "test", default = "is ng")
+  var opts = parser.parse_args()
+  echo "test: " & opts.get_string("test")
+
+this will be:
+
+.. code-block:: console
+
+  $ test -t="is ok"
+  is ok
+
+see tests folder to see more types of arguments.
+
+
+license
+-----------
 Copyright (c) 2020, shimoda as kuri65536 _dot_ hot mail _dot_ com
                       ( email address: convert _dot_ to . and joint string )
 
 This Source Code Form is subject to the terms of the Mozilla Public License,
 v.2.0. If a copy of the MPL was not distributed with this file,
 You can obtain one at https://mozilla.org/MPL/2.0/.
-]#
+]##
 import os
 import options
 import strformat
@@ -51,6 +78,13 @@ type  # {{{1
     default: Option[float]
 
   ArgumentParser* = ref object of RootObj  # {{{1
+    ##[ parse arguments by specified actions.
+
+        - actions will be added by `add_argument`
+        - then call `parse_args` or `parse_known_args` to parse arguments
+        - after that, arguments results will be returned and its
+            values can be accessed by key names
+    ]##
     usage*, description*, epilog, usage_optionals*, usage_required: string
     usage_version*: string
     prog: string
@@ -114,6 +148,8 @@ proc to_help(self: OptionsAction): string =  # {{{1
 
 
 proc print_help*(self: ArgumentParser): void =  # {{{1
+    ##[ print help message from `ArgumentParser` contents.
+    ]##
     echo self.parse_help_string(self.usage)
     echo self.parse_help_string(self.description)
 
@@ -138,6 +174,8 @@ proc print_help*(self: ArgumentParser): void =  # {{{1
 
 
 proc print_version*(self: ArgumentParser): void =  # {{{1
+    ##[ print simple version message from `ArgumentParser` contents.
+    ]##
     echo self.parse_help_string(self.usage_version)
 
 
@@ -182,6 +220,8 @@ proc set_opt_name(self: var OptionsAction, short: char,  # {{{1
 proc add_argument*(self: ArgumentParser,  # action only {{{1
                    opt_short: char, opt_long: string, dest = "", nargs = 1,
                    action: ActionFunc = nil, help_text = ""): void =
+    ##[add an argument to call action functions for complex behavior.
+    ]##
     var act = OptionsAction(action: action, help_text: help_text,
                             without_value: nargs < 1)
     self.actions.add(act)
@@ -205,6 +245,15 @@ proc add_argument*(self: ArgumentParser,  # string-2 {{{1
                    opt_short: char, opt_long, default: string, dest = "",
                    choices: seq[string] = @[],
                    action: ActionFunc = nil, help_text = ""): void =
+    ##[ add a string argument to parser.
+
+        :opt_short: an argument like '-s=...'
+        :opt_long:  an argument like '--string=...'
+        :default:   a value if no arguments specified.
+        :dest:      a name of the key in results
+        :action:    a function called if argument was specifed.
+        :help_text: text message to output in `print_help`
+    ]##
     self.add_argument(opt_short, opt_long, some(default), dest,
                       choices, action, help_text)
 
@@ -230,6 +279,10 @@ proc add_argument*(self: ArgumentParser,  # int {{{1
                    opt_short: char, opt_long: string, default: int,
                    dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
+    ##[add a integer argument to parser.
+
+        **todo** shimoda: add min and max parameters instead of range.
+    ]##
     add_argument(self, opt_short, opt_long, some(default), dest,
                  action, help_text)
 
@@ -251,6 +304,7 @@ proc add_argument*(self: ArgumentParser,  # float {{{1
                    opt_short: char, opt_long: string, default: float,
                    dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
+    ## add a string argument to parser.
     add_argument(self, opt_short, opt_long, some(default), dest,
                  action, help_text)
 
@@ -268,6 +322,10 @@ proc add_argument*(self: ArgumentParser,  # bool {{{1
 proc add_argument*(self: ArgumentParser,  # bool {{{1
                    opt_short: char, opt_long: string, default: bool,
                    dest = "", action: ActionFunc = nil, help_text = ""): void =
+    ##[add a boolean argument to parser.
+        if the argument were specified, set the value to an opposite
+        from its default.
+    ]##
     self.add_argument(opt_short, opt_long, some(default),
                       dest, action, help_text)
 
@@ -275,6 +333,9 @@ proc add_argument*(self: ArgumentParser,  # bool {{{1
 proc add_argument*(self: ArgumentParser,  # exit {{{1
                    opt_short: char, opt_long: string, default: ActionExit,
                    action: ActionFunc = nil, help_text = ""): void =
+    ##[add a boolean argument (special cases)
+        if the argument were specified, show messages and exit the program.
+    ]##
     var act = OptionsActionBoolean(default: some(true),
                                 help_text: help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, "")
@@ -379,6 +440,9 @@ proc run_action(self: OptionsAction, opts: var Options,  # {{{1
 
 proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                        ): tuple[opts: Options, args: seq[string]] =
+    ##[ parse the specified arguments.
+        returns parsed results and unknown arguments.
+    ]##
     var ret1 = initTable[string, OptionBase]()
     var ret2: seq[string] = @[]
 
@@ -446,6 +510,9 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
 
 proc parse_args*(self: ArgumentParser, args: seq[string]  # {{{1
                  ): Options =
+    ##[ parse the specified arguments,
+        raise ValueError if arguments has unknown arguments.
+    ]##
     var (ret1, ret2) = self.parse_known_args(args)
 
     if len(ret2) > 0:
@@ -480,10 +547,22 @@ proc get_string*(self: Options, name: string,  # {{{1
 
 
 proc get_string*(self: Options, name, default: string): string =  # {{{1
+    ##[ get a string argument from the parser result,
+        return `default` if `name` not in the result.
+    ]##
     return self.get_string(name, some(default))
 
 
 proc get_string*(self: Options, name: string): string =  # {{{1
+    ##[ get a string argument from the parser result, raise KeyError
+        if `name` not in the result.
+
+        `name` will be follow in bellow rules.
+
+        1. `dest` in `add_arguments` if specified
+        2. `opt_long` in `add_arguments` if specified
+        3. `opt_short` in `add_arguments` if specified
+    ]##
     return self.get_string(name, none(string))
 
 
@@ -503,6 +582,7 @@ proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
 
 
 proc get_boolean*(self: Options, name: string): bool =  # {{{1
+    ## see `get_string`
     return self.get_boolean(name, none(bool))
 
 
@@ -522,6 +602,7 @@ proc get_integer*(self: Options, name: string, default: int): int =  # {{{1
 
 
 proc get_integer*(self: Options, name: string): int =  # {{{1
+    ## see `get_string`
     return self.get_integer(name, none(int))
 
 
@@ -541,6 +622,7 @@ proc get_float*(self: Options, name: string, default: float): float =  # {{{1
 
 
 proc get_float*(self: Options, name: string): float =  # {{{1
+    ## see `get_string`
     return self.get_float(name, none(float))
 
 
