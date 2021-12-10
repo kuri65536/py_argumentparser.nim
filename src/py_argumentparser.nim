@@ -72,7 +72,7 @@ type  # {{{1
 
 
   OptionsActionInteger* = ref object of OptionsAction  # {{{1
-    default: Option[int]
+    default, min, max: Option[int]
 
   OptionsActionFloat* = ref object of OptionsAction  # {{{1
     default: Option[float]
@@ -267,23 +267,35 @@ proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
 
 
 proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short: char, opt_long: string, default: Option[int], dest = "",
+                   opt_short: char, opt_long: string,
+                   default, min, max: Option[int], dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionInteger(default: default,
+                                   min: min, max: max,
                                action: action, help_text: help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
     self.actions.add(act)
 
 
 proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short: char, opt_long: string, default: int,
-                   dest = "",
+                   opt_short: char, opt_long: string,
+                   default, min, max: int, dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
-    ##[add a integer argument to parser.
-
-        **todo** shimoda: add min and max parameters instead of range.
+    ##[add a integer argument to parser with limits.
     ]##
-    add_argument(self, opt_short, opt_long, some(default), dest,
+    add_argument(self, opt_short, opt_long, some(default),
+                 some(min), some(max), dest,
+                 action, help_text)
+
+
+proc add_argument*(self: ArgumentParser,  # int {{{1
+                   opt_short: char, opt_long: string, default: int,
+                   dest = "", range = range[low(int)..high(int)],
+                   action: ActionFunc = nil, help_text = ""): void =
+    ##[add a integer argument to parser without limits.
+    ]##
+    add_argument(self, opt_short, opt_long, some(default),
+                 none(int), none(int), dest,
                  action, help_text)
 
 
@@ -390,7 +402,15 @@ method set_default(self: OptionsActionFloat, opts: var Options): void =
 method action_default(self: OptionsAction, opts: var Options,  # {{{1
                       key, val: string): void {.base.} =
     if self of OptionsActionInteger:
-        opts[key] = OptionInteger(val: parseInt(val))
+        let act = cast[OptionsActionInteger](self)
+        let v = parseInt(val)
+        if act.max.isSome and v > act.max.get():
+            raise newException(ValueError,
+                               act.dest_name & " over limit: " & $v)
+        if act.min.isSome and v < act.min.get():
+            raise newException(ValueError,
+                               act.dest_name & " under limit: " & $v)
+        opts[key] = OptionInteger(val: v)
     elif self of OptionsActionFloat:
         opts[key] = OptionFloat(val: parseFloat(val))
     elif self of OptionsActionBoolean:

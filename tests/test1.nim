@@ -1,4 +1,4 @@
-#[
+##[
 ## license
 Copyright (c) 2020, shimoda as kuri65536 _dot_ hot mail _dot_ com
                       ( email address: convert _dot_ to . and joint string )
@@ -36,7 +36,7 @@ option float       | o | 1-4-1
   default from get | o | 1-4-1
 options merge      |   | see below
   record->range    | o | 3-1
-]#
+]##
 import options
 import tables
 import unittest
@@ -105,9 +105,22 @@ test "T1-3-1 can parse integer":
     (opts, vals) = p.parse_known_args(@["no num were presented"])
     check opts.get_integer("this-num", -3) == -1
 
-    p.add_argument('d', "no-default", default = none(int))
+    p.add_argument('d', "no-default", default = none(int),
+                   min = none(int), max = none(int))
     (opts, vals) = p.parse_known_args(@[])
     check opts.get_integer("no-default", -4) == -4
+
+    p.add_argument('l', "limit", default = 1, min = 0, max = 10)
+    try:
+        (opts, vals) = p.parse_known_args(@["--limit", "-1"])
+        assert false
+    except:
+        discard
+    try:
+        (opts, vals) = p.parse_known_args(@["--limit", "11"])
+        assert false
+    except:
+        discard
 
 test "T1-3-2 can parse combined opts":
     var p = initArgumentParser()
