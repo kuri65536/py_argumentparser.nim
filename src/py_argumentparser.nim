@@ -121,7 +121,7 @@ proc initArgumentParser*(usage = ""): ArgumentParser =  # {{{1
     var usage_msg = if len(usage) < 1: usage
                     else:              "impl."
     var ret = ArgumentParser(actions: @[],
-                             usage: usage)
+                             usage: usage_msg)
     return ret
 
 
@@ -359,7 +359,8 @@ proc add_argument*(self: ArgumentParser,  # exit {{{1
     self.actions.add(act)
 
 
-method set_default(self: OptionsAction, opts: var Options): void {.base.} =  # {{{1
+method set_default(self: OptionsAction, opts: var Options  # {{{1
+                   ): void {.base, locks: "unknown" .} =
     discard
 
 
@@ -378,7 +379,7 @@ method set_default(self: OptionsActionString, opts: var Options): void =
         opt.val = self.default.get()
     else:
         # info(fmt"set_default: {self.default} => {name}")
-        opts.add(name, OptionString(val: val))
+        opts[name] = OptionString(val: val)
 
 
 method set_default(self: OptionsActionBoolean, opts: var Options): void =
@@ -441,7 +442,7 @@ method action_default(self: OptionsActionString, opts: var Options,
         opt.val = val
     else:
         var opt = OptionString(val: val)
-        opts.add(name, opt)
+        opts[name] = opt
 
 
 proc run_action(self: OptionsAction, opts: var Options,  # {{{1
