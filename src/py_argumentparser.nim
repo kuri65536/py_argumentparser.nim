@@ -543,17 +543,23 @@ proc parse_args*(self: ArgumentParser, args: seq[string]  # {{{1
 
 proc parse_known_args*(self: ArgumentParser  # {{{1
                        ): tuple[opts: Options, args: seq[string]] =
+  when declared(paramCount):
     var args: seq[string] = @[]
     for i in countup(1, paramCount()):
         args.add(paramStr(i).string)
     return self.parse_known_args(args)
+  else:
+    return self.parse_known_args(@[])
 
 
 proc parse_args*(self: ArgumentParser): Options =  # {{{1
+  when declared(paramCount):
     var args: seq[string] = @[]
     for i in countup(1, paramCount()):
         args.add(paramStr(i).string)
     return self.parse_args(args)
+  else:
+    return self.parse_args(@[])
 
 
 proc get_string*(self: Options, name: string,  # {{{1
