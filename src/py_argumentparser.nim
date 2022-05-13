@@ -40,10 +40,15 @@ import strformat
 import strutils
 import tables
 
-type  # {{{1
-  ActionResult* = enum  # {{{1
-    ok = 0
+import py_argumentparser/private/py_argparse_common
+import py_argumentparser/private/py_argparse_int
 
+export ActionResult, initArgumentParser
+export get_integer
+export add_argument
+
+
+type  # {{{1
   ActionExit* = enum  # {{{1
     help = 1
     version
@@ -53,16 +58,6 @@ type  # {{{1
     argument_is_option_without_value = 1
     argument_is_option_with_value = 2
 
-  ActionFunc* = proc(key, val: string): ActionResult  # {{{1
-
-  OptionsAction* = ref object of RootObj  # {{{1
-    short_name: char
-    long_name, dest_name: string
-    required*: bool
-    action: ActionFunc
-    help_text: string
-    without_value: bool
-
   OptionsActionString* = ref object of OptionsAction  # {{{1
     default: Option[string]
     choices: seq[string]
@@ -70,36 +65,13 @@ type  # {{{1
   OptionsActionBoolean* = ref object of OptionsAction  # {{{1
     default: Option[bool]
 
-
-  OptionsActionInteger* = ref object of OptionsAction  # {{{1
-    default, min, max: Option[int]
-
   OptionsActionFloat* = ref object of OptionsAction  # {{{1
     default: Option[float]
-
-  ArgumentParser* = ref object of RootObj  # {{{1
-    ##[ parse arguments by specified actions.
-
-        - actions will be added by `add_argument`
-        - then call `parse_args` or `parse_known_args` to parse arguments
-        - after that, arguments results will be returned and its
-            values can be accessed by key names
-    ]##
-    usage*, description*, epilog, usage_optionals*, usage_required: string
-    usage_version*: string
-    prog: string
-    actions: seq[OptionsAction]
-
-  OptionBase* = ref object of RootObj  # {{{1
-    discard
 
   OptionString* = ref object of OptionBase  # {{{1
     val*: string
     choices: seq[string]
     default: string
-
-  OptionInteger* = ref object of OptionBase  # {{{1
-    val: int
 
   OptionFloat* = ref object of OptionBase  # {{{1
     val: float
@@ -110,19 +82,8 @@ type  # {{{1
   OptionStrings* = ref object of OptionBase  # {{{1
     vals: seq[string]
 
-  Options* = Table[string, OptionBase]  # {{{1
 
-
-var help_parser: ArgumentParser = nil
-let invalid_short_names = ['\0', ' ']
-
-
-proc initArgumentParser*(usage = ""): ArgumentParser =  # {{{1
-    var usage_msg = if len(usage) < 1: usage
-                    else:              "impl."
-    var ret = ArgumentParser(actions: @[],
-                             usage: usage_msg)
-    return ret
+var help_parser {.threadvar.}: ArgumentParser
 
 
 proc help_init(self: ArgumentParser): void =  # {{{1
@@ -183,7 +144,7 @@ proc `$`*(opt: OptionBase): string =  # {{{1
     if opt of OptionString:
         return OptionString(opt).val
     if opt of OptionInteger:
-        return $OptionInteger(opt).val
+        return OptionInteger(opt).to_string()
     if opt of OptionFloat:
         return $OptionFloat(opt).val
     if opt of OptionBoolean:
@@ -199,22 +160,6 @@ proc action_help*(key, val: string): ActionResult =  # {{{1
 proc action_version*(key, val: string): ActionResult =  # {{{1
     help_parser.print_version()
     system.quit(1)
-
-
-proc set_opt_name(self: var OptionsAction, short: char,  # {{{1
-                  long, dest: string): void =
-    self.short_name = short
-
-    self.long_name = if long.startsWith("--"): long[2..^1]
-                     else:                     long
-    var name = if len(dest) > 0: dest
-               else:             self.long_name
-    if name.startsWith("--"):
-        name = name[2..^1]
-    if len(name) < 1 and self.short_name not_in invalid_short_names:
-        name = $self.short_name
-    self.dest_name = name
-    # echo fmt"set_opt_name: {self.dest_name} <= {short}, {long}"
 
 
 proc add_argument*(self: ArgumentParser,  # action only {{{1
@@ -264,39 +209,6 @@ proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
                   action: ActionFunc = nil): void =
     # seq[string]
     discard
-
-
-proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short: char, opt_long: string,
-                   default, min, max: Option[int], dest = "",
-                   action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionInteger(default: default,
-                                   min: min, max: max,
-                               action: action, help_text: help_text)
-    OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
-    self.actions.add(act)
-
-
-proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short: char, opt_long: string,
-                   default, min, max: int, dest = "",
-                   action: ActionFunc = nil, help_text = ""): void =
-    ##[add a integer argument to parser with limits.
-    ]##
-    add_argument(self, opt_short, opt_long, some(default),
-                 some(min), some(max), dest,
-                 action, help_text)
-
-
-proc add_argument*(self: ArgumentParser,  # int {{{1
-                   opt_short: char, opt_long: string, default: int,
-                   dest = "", range = range[low(int)..high(int)],
-                   action: ActionFunc = nil, help_text = ""): void =
-    ##[add a integer argument to parser without limits.
-    ]##
-    add_argument(self, opt_short, opt_long, some(default),
-                 none(int), none(int), dest,
-                 action, help_text)
 
 
 proc add_argument*(self: ArgumentParser,  # float {{{1
@@ -359,11 +271,6 @@ proc add_argument*(self: ArgumentParser,  # exit {{{1
     self.actions.add(act)
 
 
-method set_default(self: OptionsAction, opts: var Options  # {{{1
-                   ): void {.base, locks: "unknown" .} =
-    discard
-
-
 method set_default(self: OptionsActionString, opts: var Options): void =
     var (name, val) = (self.dest_name, "")
     if self.default.isSome:
@@ -388,35 +295,19 @@ method set_default(self: OptionsActionBoolean, opts: var Options): void =
     opts[self.dest_name] = OptionBoolean(val: self.default.get())
 
 
-method set_default(self: OptionsActionInteger, opts: var Options): void =
-    if self.default.isNone:
-        return
-    opts[self.dest_name] = OptionInteger(val: self.default.get())
-
-
 method set_default(self: OptionsActionFloat, opts: var Options): void =
     if self.default.isNone:
         return
     opts[self.dest_name] = OptionFloat(val: self.default.get())
 
 
-method action_default(self: OptionsAction, opts: var Options,  # {{{1
-                      key, val: string): void {.base.} =
-    if self of OptionsActionInteger:
-        let act = cast[OptionsActionInteger](self)
-        let v = parseInt(val)
-        if act.max.isSome and v > act.max.get():
-            raise newException(ValueError,
-                               act.dest_name & " over limit: " & $v)
-        if act.min.isSome and v < act.min.get():
-            raise newException(ValueError,
-                               act.dest_name & " under limit: " & $v)
-        opts[key] = OptionInteger(val: v)
+#[
     elif self of OptionsActionFloat:
         opts[key] = OptionFloat(val: parseFloat(val))
     elif self of OptionsActionBoolean:
         var act = OptionsActionBoolean(self)
         opts[key] = OptionBoolean(val: not act.default.get())
+]#
     #[ TODO(shimoda): not impemented, yet
     elif self of OptionsActionStrings:
         if not opts.hasKey(name):
@@ -611,26 +502,6 @@ proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
 proc get_boolean*(self: Options, name: string): bool =  # {{{1
     ## see `get_string`
     return self.get_boolean(name, none(bool))
-
-
-proc get_integer*(self: Options, name: string, default: Option[int]  # {{{1
-                  ): int =
-    if self.hasKey(name):
-        var tmp = OptionInteger(self[name])
-        return tmp.val
-    if default.isSome:
-        return default.get()
-    raise newException(KeyError,
-                       fmt"{name} has no-default and not specified.")
-
-
-proc get_integer*(self: Options, name: string, default: int): int =  # {{{1
-    return self.get_integer(name, some(default))
-
-
-proc get_integer*(self: Options, name: string): int =  # {{{1
-    ## see `get_string`
-    return self.get_integer(name, none(int))
 
 
 proc get_float*(self: Options, name: string, default: Option[float]  # {{{1
