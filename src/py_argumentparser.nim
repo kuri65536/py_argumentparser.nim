@@ -43,9 +43,10 @@ import tables
 import py_argumentparser/private/py_argparse_common
 import py_argumentparser/private/py_argparse_float
 import py_argumentparser/private/py_argparse_int
+import py_argumentparser/private/py_argparse_str
 
 export ActionResult, initArgumentParser
-export get_float, get_integer
+export get_float, get_integer, get_string
 export add_argument
 
 
@@ -59,17 +60,8 @@ type  # {{{1
     argument_is_option_without_value = 1
     argument_is_option_with_value = 2
 
-  OptionsActionString* = ref object of OptionsAction  # {{{1
-    default: Option[string]
-    choices: seq[string]
-
   OptionsActionBoolean* = ref object of OptionsAction  # {{{1
     default: Option[bool]
-
-  OptionString* = ref object of OptionBase  # {{{1
-    val*: string
-    choices: seq[string]
-    default: string
 
   OptionBoolean* = ref object of OptionBase  # {{{1
     val*: bool
@@ -137,7 +129,7 @@ proc print_version*(self: ArgumentParser): void =  # {{{1
 
 proc `$`*(opt: OptionBase): string =  # {{{1
     if opt of OptionString:
-        return OptionString(opt).val
+        return OptionString(opt).to_string()
     if opt of OptionInteger:
         return OptionInteger(opt).to_string()
     if opt of OptionFloat:
@@ -167,36 +159,6 @@ proc add_argument*(self: ArgumentParser,  # action only {{{1
                             without_value: nargs < 1)
     self.actions.add(act)
     act.set_opt_name(opt_short, opt_long, dest)
-
-
-proc add_argument*(self: ArgumentParser,  # string {{{1
-                   opt_short: char, opt_long: string, default: Option[string],
-                   dest = "", choices: seq[string] = @[],
-                  action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionString(action: action, help_text: help_text,
-                                  default: default)
-    self.actions.add(act)
-    OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
-
-    if len(choices) > 0:
-        act.choices = choices
-
-
-proc add_argument*(self: ArgumentParser,  # string-2 {{{1
-                   opt_short: char, opt_long, default: string, dest = "",
-                   choices: seq[string] = @[],
-                   action: ActionFunc = nil, help_text = ""): void =
-    ##[ add a string argument to parser.
-
-        :opt_short: an argument like '-s=...'
-        :opt_long:  an argument like '--string=...'
-        :default:   a value if no arguments specified.
-        :dest:      a name of the key in results
-        :action:    a function called if argument was specifed.
-        :help_text: text message to output in `print_help`
-    ]##
-    self.add_argument(opt_short, opt_long, some(default), dest,
-                      choices, action, help_text)
 
 
 proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
@@ -245,24 +207,6 @@ proc add_argument*(self: ArgumentParser,  # exit {{{1
     self.actions.add(act)
 
 
-method set_default(self: OptionsActionString, opts: var Options): void =
-    var (name, val) = (self.dest_name, "")
-    if self.default.isSome:
-        val = self.default.get()
-    elif len(self.choices) > 0:
-        val = self.choices[0]
-    else:
-        return
-
-    if len(opts) > 0 and opts.hasKey(name):
-        # info(fmt"set_default(override): {self.default} => {name}")
-        var opt = OptionString(opts[name])
-        opt.val = self.default.get()
-    else:
-        # info(fmt"set_default: {self.default} => {name}")
-        opts[name] = OptionString(val: val)
-
-
 method set_default(self: OptionsActionBoolean, opts: var Options): void =
     if self.default.isNone:
         return
@@ -286,20 +230,6 @@ method set_default(self: OptionsActionBoolean, opts: var Options): void =
             except:
                 discard
     ]#
-
-
-method action_default(self: OptionsActionString, opts: var Options,
-                      key, val: string): void =
-    if len(self.choices) > 0:
-        if not self.choices.contains(val):
-            return
-    var name = self.dest_name
-    if opts.hasKey(name):
-        var opt = OptionString(opts[name])
-        opt.val = val
-    else:
-        var opt = OptionString(val: val)
-        opts[name] = opt
 
 
 proc run_action(self: OptionsAction, opts: var Options,  # {{{1
@@ -417,37 +347,6 @@ proc parse_args*(self: ArgumentParser): Options =  # {{{1
     return self.parse_args(args)
   else:
     return self.parse_args(@[])
-
-
-proc get_string*(self: Options, name: string,  # {{{1
-                 default: Option[string]): string =
-    if self.hasKey(name):
-        var tmp = OptionString(self[name])
-        return tmp.val
-    if default.isSome:
-        return default.get()
-    raise newException(KeyError,
-                       fmt"{name} has no-default and not specified.")
-
-
-proc get_string*(self: Options, name, default: string): string =  # {{{1
-    ##[ get a string argument from the parser result,
-        return `default` if `name` not in the result.
-    ]##
-    return self.get_string(name, some(default))
-
-
-proc get_string*(self: Options, name: string): string =  # {{{1
-    ##[ get a string argument from the parser result, raise KeyError
-        if `name` not in the result.
-
-        `name` will be follow in bellow rules.
-
-        1. `dest` in `add_arguments` if specified
-        2. `opt_long` in `add_arguments` if specified
-        3. `opt_short` in `add_arguments` if specified
-    ]##
-    return self.get_string(name, none(string))
 
 
 proc get_boolean*(self: Options, name: string, default: Option[bool]  # {{{1
