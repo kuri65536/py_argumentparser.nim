@@ -41,10 +41,11 @@ import strutils
 import tables
 
 import py_argumentparser/private/py_argparse_common
+import py_argumentparser/private/py_argparse_float
 import py_argumentparser/private/py_argparse_int
 
 export ActionResult, initArgumentParser
-export get_integer
+export get_float, get_integer
 export add_argument
 
 
@@ -65,16 +66,10 @@ type  # {{{1
   OptionsActionBoolean* = ref object of OptionsAction  # {{{1
     default: Option[bool]
 
-  OptionsActionFloat* = ref object of OptionsAction  # {{{1
-    default: Option[float]
-
   OptionString* = ref object of OptionBase  # {{{1
     val*: string
     choices: seq[string]
     default: string
-
-  OptionFloat* = ref object of OptionBase  # {{{1
-    val: float
 
   OptionBoolean* = ref object of OptionBase  # {{{1
     val*: bool
@@ -146,10 +141,11 @@ proc `$`*(opt: OptionBase): string =  # {{{1
     if opt of OptionInteger:
         return OptionInteger(opt).to_string()
     if opt of OptionFloat:
-        return $OptionFloat(opt).val
+        return OptionFloat(opt).to_string()
     if opt of OptionBoolean:
         return $OptionBoolean(opt).val
     return "none"
+
 
 
 proc action_help*(key, val: string): ActionResult =  # {{{1
@@ -209,28 +205,6 @@ proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
                   action: ActionFunc = nil): void =
     # seq[string]
     discard
-
-
-proc add_argument*(self: ArgumentParser,  # float {{{1
-                   opt_short: char, opt_long: string, default: Option[float],
-                   dest = "", action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionFloat(
-            default: default,
-            action: action, help_text: help_text)
-    OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
-    self.actions.add(act)
-
-    if not isNil(action):
-        act.action = action
-
-
-proc add_argument*(self: ArgumentParser,  # float {{{1
-                   opt_short: char, opt_long: string, default: float,
-                   dest = "",
-                   action: ActionFunc = nil, help_text = ""): void =
-    ## add a string argument to parser.
-    add_argument(self, opt_short, opt_long, some(default), dest,
-                 action, help_text)
 
 
 proc add_argument*(self: ArgumentParser,  # bool {{{1
@@ -295,15 +269,7 @@ method set_default(self: OptionsActionBoolean, opts: var Options): void =
     opts[self.dest_name] = OptionBoolean(val: self.default.get())
 
 
-method set_default(self: OptionsActionFloat, opts: var Options): void =
-    if self.default.isNone:
-        return
-    opts[self.dest_name] = OptionFloat(val: self.default.get())
-
-
 #[
-    elif self of OptionsActionFloat:
-        opts[key] = OptionFloat(val: parseFloat(val))
     elif self of OptionsActionBoolean:
         var act = OptionsActionBoolean(self)
         opts[key] = OptionBoolean(val: not act.default.get())
@@ -502,26 +468,6 @@ proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
 proc get_boolean*(self: Options, name: string): bool =  # {{{1
     ## see `get_string`
     return self.get_boolean(name, none(bool))
-
-
-proc get_float*(self: Options, name: string, default: Option[float]  # {{{1
-                ): float =
-    if self.hasKey(name):
-        var tmp = OptionFloat(self[name])
-        return tmp.val
-    if default.isSome:
-        return default.get()
-    raise newException(KeyError,
-                       fmt"{name} has no-default and not specified.")
-
-
-proc get_float*(self: Options, name: string, default: float): float =  # {{{1
-    return self.get_float(name, some(default))
-
-
-proc get_float*(self: Options, name: string): float =  # {{{1
-    ## see `get_string`
-    return self.get_float(name, none(float))
 
 
 # end of file {{{1

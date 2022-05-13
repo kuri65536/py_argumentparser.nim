@@ -76,7 +76,8 @@ method action_default(act: OptionsActionInteger, opts: var Options,  # {{{1
     opts[key] = OptionInteger(val: v)
 
 
-method set_default*(self: OptionsActionInteger, opts: var Options): void =
+method set_default*(self: OptionsActionInteger, opts: var Options  # {{{1
+                    ): void =
     if self.default.isNone:
         return
     opts[self.dest_name] = OptionInteger(val: self.default.get())
