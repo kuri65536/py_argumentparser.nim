@@ -34,14 +34,13 @@ proc to_string*(self: OptionFloat): string =  # {{{1
 proc add_argument*(self: ArgumentParser,  # float {{{1
                    opt_short: char, opt_long: string, default: Option[float],
                    dest = "", action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionFloat(
-            default: default,
-            action: action, help_text: help_text)
+    var act = OptionsActionFloat(default: default)
+    discard act.set_helptext(help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
     self.actions.add(act)
 
     if not isNil(action):
-        act.action = action
+        discard act.set_action(action)
 
 
 proc add_argument*(self: ArgumentParser,  # float {{{1
@@ -56,12 +55,12 @@ proc add_argument*(self: ArgumentParser,  # float {{{1
 method set_default(self: OptionsActionFloat, opts: var Options): void =  # {{{1
     if self.default.isNone:
         return
-    opts[self.dest_name] = OptionFloat(val: self.default.get())
+    opts.set_option(self, OptionFloat(val: self.default.get()))
 
 
 method action_default(act: OptionsActionFloat, opts: var Options,  # {{{1
                       key, val: string): void =
-    opts[key] = OptionFloat(val: parseFloat(val))
+    opts.set_option(act, OptionFloat(val: parseFloat(val)))
 
 
 proc get_float*(self: Options, name: string, default: Option[float]  # {{{1

@@ -36,8 +36,9 @@ proc add_argument*(self: ArgumentParser,  # int {{{1
                    default, min, max: Option[int], dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
     var act = OptionsActionInteger(default: default,
-                                   min: min, max: max,
-                               action: action, help_text: help_text)
+                                   min: min, max: max)
+    discard act.set_action(action
+              ).set_helptext(help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
     self.actions.add(act)
 
@@ -69,18 +70,18 @@ method action_default(act: OptionsActionInteger, opts: var Options,  # {{{1
     let v = parseInt(val)
     if act.max.isSome and v > act.max.get():
         raise newException(ValueError,
-                           act.dest_name & " over limit: " & $v)
+                           key & " over limit: " & $v)
     if act.min.isSome and v < act.min.get():
         raise newException(ValueError,
-                           act.dest_name & " under limit: " & $v)
-    opts[key] = OptionInteger(val: v)
+                           key & " under limit: " & $v)
+    opts.set_option(act, OptionInteger(val: v))
 
 
 method set_default*(self: OptionsActionInteger, opts: var Options  # {{{1
                     ): void =
     if self.default.isNone:
         return
-    opts[self.dest_name] = OptionInteger(val: self.default.get())
+    opts.set_option(self, OptionInteger(val: self.default.get()))
 
 
 proc get_integer*(self: Options, name: string, default: Option[int]  # {{{1

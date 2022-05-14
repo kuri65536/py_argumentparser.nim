@@ -36,7 +36,6 @@ You can obtain one at https://mozilla.org/MPL/2.0/.
 ]##
 import os
 import options
-import strformat
 import strutils
 import tables
 
@@ -77,17 +76,6 @@ proc parse_help_string(self: ArgumentParser, src: string): string =  # {{{1
     var ret = src
     ret = ret.replace("%(prog)", self.prog)
     return src
-
-
-proc to_help(self: OptionsAction): string =  # {{{1
-    var ret = ""
-    if self.short_name not_in invalid_short_names:
-        ret = fmt"-{self.short_name}"
-    if len(self.long_name) > 0:
-        if len(ret) > 0: ret = ret & ", "
-        ret &= fmt"--{self.long_name}"
-    ret = fmt"    {ret:20}: " & self.help_text
-    return ret
 
 
 proc print_help*(self: ArgumentParser): void =  # {{{1
@@ -135,7 +123,7 @@ proc `$`*(opt: OptionBase): string =  # {{{1
 
 
 
-proc action_help*(key, val: string): ActionResult =  # {{{1
+proc action_help*(key, val: string): ActionResult {.gcsafe.} =  # {{{1
     help_parser.print_help()
     system.quit(1)
 
@@ -150,8 +138,11 @@ proc add_argument*(self: ArgumentParser,  # action only {{{1
                    action: ActionFunc = nil, help_text = ""): void =
     ##[add an argument to call action functions for complex behavior.
     ]##
-    var act = OptionsAction(action: action, help_text: help_text,
-                            without_value: nargs < 1)
+    var act = OptionsAction()
+    discard act.set_action(action
+              ).set_helptext(help_text
+              ).set_withoutvalue(nargs < 1
+              )
     self.actions.add(act)
     act.set_opt_name(opt_short, opt_long, dest)
 
@@ -174,9 +165,9 @@ proc add_argument*(self: ArgumentParser,  # exit {{{1
     OptionsAction(act).set_opt_name(opt_short, opt_long, "")
     if isNil(action):
         if default == ActionExit.help:
-            act.action = action_help
+            discard act.set_action(action_help)
         if default == ActionExit.version:
-            act.action = action_version
+            discard act.set_action(action_version)
     self.actions.add(act)
 
 
@@ -195,20 +186,6 @@ method action_default(act: OptionsActionStrings, opts: var Options,  # {{{1
     ]#
 
 
-proc run_action(self: OptionsAction, opts: var Options,  # {{{1
-                val: string): void =
-    var name = self.dest_name
-    if isNil(self.action):
-        discard
-    elif self.short_name not_in invalid_short_names:
-        discard self.action("-" & $self.short_name, val)
-        return
-    else:
-        discard self.action("--" & self.long_name, val)
-        return
-    self.action_default(opts, name, val)
-
-
 proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                        ): tuple[opts: Options, args: seq[string]] =
     ##[ parse the specified arguments.
@@ -223,13 +200,12 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
 
     proc match_option(act: OptionsAction,  # {{{1
                       s: char, l: string): ArgumentType =
-        if s not_in invalid_short_names and s != act.short_name:
-            return argument_is_value
-        if len(l) > 0 and l != act.long_name:
+        let f = act.is_match(s, l)
+        if f == option_match.unmatch:
             return argument_is_value
         if act of OptionsActionBoolean:
             return argument_is_option_without_value
-        if act.without_value:
+        if f == option_match.match_wo_value:
             return argument_is_option_without_value
         return argument_is_option_with_value
 

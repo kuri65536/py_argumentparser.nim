@@ -37,8 +37,9 @@ proc add_argument*(self: ArgumentParser,  # string {{{1
                    opt_short: char, opt_long: string, default: Option[string],
                    dest = "", choices: seq[string] = @[],
                   action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionString(action: action, help_text: help_text,
-                                  default: default)
+    var act = OptionsActionString(default: default)
+    discard act.set_action(action
+              ).set_helptext(help_text)
     self.actions.add(act)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
 
@@ -65,22 +66,14 @@ proc add_argument*(self: ArgumentParser,  # string-2 {{{1
 
 method set_default(self: OptionsActionString, opts: var Options  # {{{1
                    ): void =
-    var (name, val) = (self.dest_name, "")
+    var val = ""
     if self.default.isSome:
         val = self.default.get()
     elif len(self.choices) > 0:
         val = self.choices[0]
     else:
         return
-
-    if len(opts) > 0 and opts.hasKey(name):
-        # info(fmt"set_default(override): {self.default} => {name}")
-        var opt = OptionString(opts[name])
-        opt.val = self.default.get()
-    else:
-        # info(fmt"set_default: {self.default} => {name}")
-        opts[name] = OptionString(val: val)
-
+    opts.set_option(self, OptionString(val: val))
 
 
 method action_default(self: OptionsActionString, opts: var Options,  # {{{1
@@ -88,13 +81,8 @@ method action_default(self: OptionsActionString, opts: var Options,  # {{{1
     if len(self.choices) > 0:
         if not self.choices.contains(val):
             return
-    var name = self.dest_name
-    if opts.hasKey(name):
-        var opt = OptionString(opts[name])
-        opt.val = val
-    else:
-        var opt = OptionString(val: val)
-        opts[name] = opt
+    # < 0.3.0, older version override values, not replace.
+    opts.set_option(self, OptionString(val: val))
 
 
 proc get_string*(self: Options, name: string,  # {{{1

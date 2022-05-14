@@ -28,9 +28,8 @@ type  # {{{1
 
 proc initOptionsActionBoolean*(default: Option[bool],  # {{{1
                                help_text: string): OptionsActionBoolean =
-    return OptionsActionBoolean(
-            default: default,
-            help_text: help_text)
+    result = OptionsActionBoolean(default: default)
+    discard result.set_helptext(help_text)
 
 
 proc to_string*(self: OptionBoolean): string =  # {{{1
@@ -41,8 +40,9 @@ proc add_argument*(self: ArgumentParser,  # bool {{{1
                    opt_short: char, opt_long: string, default: Option[bool],
                    dest = "",
                    action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionBoolean(action: action,
-                                default: default, help_text: help_text)
+    var act = initOptionsActionBoolean(
+                                default = default, help_text = help_text)
+    discard act.set_action(action)
     OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
     self.actions.add(act)
 
@@ -63,12 +63,12 @@ method set_default(self: OptionsActionBoolean, opts: var Options  # {{{1
                    ): void =
     if self.default.isNone:
         return
-    opts[self.dest_name] = OptionBoolean(val: self.default.get())
+    opts.set_option(self, OptionBoolean(val: self.default.get()))
 
 
 method action_default(act: OptionsActionBoolean, opts: var Options,  # {{{1
                       key, val: string): void =
-    opts[key] = OptionBoolean(val: not act.default.get())
+    opts.set_option(act, OptionBoolean(val: not act.default.get()))
 
 
 proc get_boolean*(self: Options, name: string, default: Option[bool]  # {{{1

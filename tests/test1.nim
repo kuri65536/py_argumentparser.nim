@@ -166,6 +166,7 @@ test "T2-1-2 actions":
     var ans: seq[string] = @[]
 
     proc t_1(key, val: string): ActionResult =
+      {.gcsafe.}:
         ans.add(val)
 
     var p = initArgumentParser()
