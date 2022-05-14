@@ -40,13 +40,14 @@ import strformat
 import strutils
 import tables
 
+import py_argumentparser/private/py_argparse_bool
 import py_argumentparser/private/py_argparse_common
 import py_argumentparser/private/py_argparse_float
 import py_argumentparser/private/py_argparse_int
 import py_argumentparser/private/py_argparse_str
 
 export ActionResult, initArgumentParser
-export get_float, get_integer, get_string
+export get_boolean, get_float, get_integer, get_string
 export add_argument
 
 
@@ -59,12 +60,6 @@ type  # {{{1
     argument_is_value = 0
     argument_is_option_without_value = 1
     argument_is_option_with_value = 2
-
-  OptionsActionBoolean* = ref object of OptionsAction  # {{{1
-    default: Option[bool]
-
-  OptionBoolean* = ref object of OptionBase  # {{{1
-    val*: bool
 
   OptionStrings* = ref object of OptionBase  # {{{1
     vals: seq[string]
@@ -135,7 +130,7 @@ proc `$`*(opt: OptionBase): string =  # {{{1
     if opt of OptionFloat:
         return OptionFloat(opt).to_string()
     if opt of OptionBoolean:
-        return $OptionBoolean(opt).val
+        return OptionBoolean(opt).to_string()
     return "none"
 
 
@@ -169,35 +164,13 @@ proc add_argument*(self: ArgumentParser,  # seq[string] {{{1
     discard
 
 
-proc add_argument*(self: ArgumentParser,  # bool {{{1
-                   opt_short: char, opt_long: string, default: Option[bool],
-                   dest = "",
-                   action: ActionFunc = nil, help_text = ""): void =
-    var act = OptionsActionBoolean(action: action,
-                                default: default, help_text: help_text)
-    OptionsAction(act).set_opt_name(opt_short, opt_long, dest)
-    self.actions.add(act)
-
-
-proc add_argument*(self: ArgumentParser,  # bool {{{1
-                   opt_short: char, opt_long: string, default: bool,
-                   dest = "", action: ActionFunc = nil, help_text = ""): void =
-    ##[add a boolean argument to parser.
-        if the argument were specified, set the value to an opposite
-        from its default.
-    ]##
-    self.add_argument(opt_short, opt_long, some(default),
-                      dest, action, help_text)
-
-
 proc add_argument*(self: ArgumentParser,  # exit {{{1
                    opt_short: char, opt_long: string, default: ActionExit,
                    action: ActionFunc = nil, help_text = ""): void =
     ##[add a boolean argument (special cases)
         if the argument were specified, show messages and exit the program.
     ]##
-    var act = OptionsActionBoolean(default: some(true),
-                                help_text: help_text)
+    var act = initOptionsActionBoolean(some(true), help_text)
     OptionsAction(act).set_opt_name(opt_short, opt_long, "")
     if isNil(action):
         if default == ActionExit.help:
@@ -207,19 +180,9 @@ proc add_argument*(self: ArgumentParser,  # exit {{{1
     self.actions.add(act)
 
 
-method set_default(self: OptionsActionBoolean, opts: var Options): void =
-    if self.default.isNone:
-        return
-    opts[self.dest_name] = OptionBoolean(val: self.default.get())
-
-
-#[
-    elif self of OptionsActionBoolean:
-        var act = OptionsActionBoolean(self)
-        opts[key] = OptionBoolean(val: not act.default.get())
-]#
     #[ TODO(shimoda): not impemented, yet
-    elif self of OptionsActionStrings:
+method action_default(act: OptionsActionStrings, opts: var Options,  # {{{1
+                      key, val: string): void =
         if not opts.hasKey(name):
             opts[key] = OptionStrings(vals: @[val],
                                        dest_type: OptionDestType.str_seq)
@@ -347,26 +310,6 @@ proc parse_args*(self: ArgumentParser): Options =  # {{{1
     return self.parse_args(args)
   else:
     return self.parse_args(@[])
-
-
-proc get_boolean*(self: Options, name: string, default: Option[bool]  # {{{1
-                  ): bool =
-    if self.hasKey(name):
-        var tmp = OptionBoolean(self[name])
-        return tmp.val
-    if default.isSome:
-        return default.get()
-    raise newException(KeyError,
-                       fmt"{name} has no-default and not specified.")
-
-
-proc get_boolean*(self: Options, name: string, default: bool): bool =  # {{{1
-    return self.get_boolean(name, some(default))
-
-
-proc get_boolean*(self: Options, name: string): bool =  # {{{1
-    ## see `get_string`
-    return self.get_boolean(name, none(bool))
 
 
 # end of file {{{1
