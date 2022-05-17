@@ -186,6 +186,61 @@ method action_default(act: OptionsActionStrings, opts: var Options,  # {{{1
     ]#
 
 
+proc parse_arg_val(arg: string): tuple[opt, val: string] =  # {{{1
+    let splitted = arg.split("=")
+    if len(splitted) < 2:
+        return (arg, "")
+    let val = splitted[1..^1].join("=")
+    return (splitted[0], val)
+
+
+proc parse_arg_with_val(arg: string): seq[tuple[opt, val: string]] =  # {{{1
+    var (opt, val) = ("", "")
+    if arg.startsWith("--"):
+        opt = arg[2 ..^ 1]
+        (opt, val) = parse_arg_val(opt)
+        return @[(opt, val)]
+    elif arg.startsWith("-"):
+        opt = arg[1 ..^ 1]
+        (opt, val) = parse_arg_val(opt)
+    else:
+        return @[("", arg)]
+    result = @[]
+    if len(opt) < 2:
+        return @[(opt, val)]
+    for ch in opt[0 ..^ 2]:
+        result.add((opt: $ch, val: ""))
+    result.add(($opt[^1], val))
+    return result
+
+
+proc parse_arg_match(acts: seq[OptionsAction], arg: string  # {{{1
+                     ): tuple[typ: ArgumentType, act: OptionsAction] =
+    for act in acts:
+        let typ = act.is_match(arg)
+        if typ == option_match.unmatch:
+            continue
+        #[
+        if act of OptionsActionBoolean:
+            return (argument_is_option_without_value, act)
+        ]#
+        if typ == option_match.match_wo_value:
+            return (argument_is_option_without_value, act)
+        return (argument_is_option_with_value, act)
+    return (argument_is_value, nil)
+
+
+iterator parse_one_arg(acts: seq[OptionsAction], arg: string  # {{{1
+                       ): tuple[typ: ArgumentType, act: OptionsAction,
+                                val: string] =
+    for i in parse_arg_with_val(arg):
+        if len(i.opt) < 1:
+            yield (argument_is_value, nil, i.val)
+            continue
+        let (typ, act) = acts.parse_arg_match(i.opt)
+        yield (typ, act, i.val)
+
+
 proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                        ): tuple[opts: Options, args: seq[string]] =
     ##[ parse the specified arguments.
@@ -193,65 +248,29 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
     ]##
     var ret1 = initTable[string, OptionBase]()
     var ret2: seq[string] = @[]
+    var next_is_value: OptionsAction = nil
 
     for act in self.actions:
         act.set_default(ret1)
     self.help_init()
 
-    proc match_option(act: OptionsAction,  # {{{1
-                      s: char, l: string): ArgumentType =
-        let f = act.is_match(s, l)
-        if f == option_match.unmatch:
-            return argument_is_value
-        if act of OptionsActionBoolean:
-            return argument_is_option_without_value
-        if f == option_match.match_wo_value:
-            return argument_is_option_without_value
-        return argument_is_option_with_value
-
-    proc parse_one_arg(arg: string  # {{{1
-                       ): tuple[typ: ArgumentType, act: OptionsAction] =
-        var s_name, l_name: string
-        if arg.startsWith("--"):
-            l_name = arg[2 ..^ 1]
-        elif not arg.startsWith("-"):
-            return (argument_is_value, nil)
-        else:
-            s_name = arg[1 ..^ 2]
-            for j in s_name:
-                for i in self.actions:
-                    var typ = match_option(i, j, "")
-                    if typ == argument_is_value:
-                        continue
-                    if typ == argument_is_option_without_value:
-                        i.run_action(ret1, $j)
-                    break  # skip options with value `ab` of like `-abc value`
-            s_name = arg[^1 .. ^1]
-
-        var short = if len(s_name) <= 0: invalid_short_names[0]
-                    else:               s_name[0]
-        for i in self.actions:
-            var n = match_option(i, short, l_name)
-            if n == argument_is_value: continue
-            return (n, i)
-        return (argument_is_value, nil)
-
-    # loop {{{1
-    var arg_opt: OptionsAction = nil
     for i in args:
-        if not isNil(arg_opt):
-            arg_opt.run_action(ret1, i)
-            arg_opt = nil
+        if not isNil(next_is_value):  # next is a value.
+            next_is_value.run_action(ret1, i)
+            next_is_value = nil
             continue
-        var (typ, act) = parse_one_arg(i)
-        # echo "loop-check: ", typ, "-", i
-        case typ:
-        of argument_is_option_without_value:
-            act.run_action(ret1, "")
-        of argument_is_option_with_value:
-            arg_opt = act
-        else:
-            ret2.add(i)
+        for typ, act, val in parse_one_arg(self.actions, i):
+            # echo "loop-check: ", typ, "-", i
+            case typ:
+            of argument_is_option_without_value:
+                act.run_action(ret1, "")
+            of argument_is_option_with_value:
+                if len(val) > 0:
+                    act.run_action(ret1, val)
+                else:
+                    next_is_value = act
+            of argument_is_value:
+                ret2.add(i)
     return (ret1, ret2)
 
 

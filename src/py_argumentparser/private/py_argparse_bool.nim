@@ -29,7 +29,8 @@ type  # {{{1
 proc initOptionsActionBoolean*(default: Option[bool],  # {{{1
                                help_text: string): OptionsActionBoolean =
     result = OptionsActionBoolean(default: default)
-    discard result.set_helptext(help_text)
+    discard result.set_helptext(help_text
+                 ).set_withoutvalue(true)
 
 
 proc to_string*(self: OptionBoolean): string =  # {{{1

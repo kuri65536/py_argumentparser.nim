@@ -122,11 +122,16 @@ proc to_help*(self: OptionsAction): string =  # {{{1
     return ret
 
 
-proc is_match*(act: OptionsAction, s: char, l: string): option_match =  # {{{1
+proc is_match*(act: OptionsAction, src: string): option_match =  # {{{1
+  if len(src) == 1:
+    let s = src[0]
     if s not_in invalid_short_names and s != act.short_name:
         return option_match.unmatch
+  else:
+    let l = src
     if len(l) > 0 and l != act.long_name:
         return option_match.unmatch
+  block:
     if act.without_value:
         return option_match.match_wo_value
     return option_match.match

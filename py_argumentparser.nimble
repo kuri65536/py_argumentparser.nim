@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.3.0"
+version       = "0.3.1"
 author        = "shimoda"
 description   = "A yet another optionparser like python behavior"
 license       = "MPL-2"
