@@ -242,17 +242,36 @@ iterator parse_one_arg(acts: seq[OptionsAction], arg: string  # {{{1
             yield (argument_is_value, nil, i.val)
         else:
             let (typ, act) = acts.parse_arg_match(i.opt)
-            yield (typ, act, i.val)
-    else:                 # short-name options
-        for i in opts[0..^2]:
-            let (typ, act) = acts.parse_arg_match(i.opt)
-            if typ == argument_is_value:
-                continue
-            yield (typ, act, i.val)
+            case typ:
+            of argument_is_value:
+                let val = (if len(i.opt) < 2: "-" else: "--") & i.opt
+                yield (typ, nil, val)
+            else:
+                yield (typ, act, i.val)
+    else:                 # short-names: `-abc` of `-a`, `-b` and `-c`
+        var wrong_opt_last = ""
         let i = opts[^1]
         let (typ, act) = acts.parse_arg_match(i.opt)
-        # when returns argument_is_value, then value will be `arg`, not `i.val`
-        yield (typ, act, i.val)
+        case typ:
+        of argument_is_option_with_value:
+            yield (typ, act, i.val)
+        of argument_is_option_without_value:
+            yield (typ, act, "")        # just ignore `-a=val`
+        of argument_is_value:
+            wrong_opt_last = i.opt
+            if len(i.val) > 0: wrong_opt_last &= "=" & i.val
+
+        var wrong_opts = ""
+        for i in opts[0..^2]:
+            let (typ, act) = acts.parse_arg_match(i.opt)
+            case typ:
+            of argument_is_option_without_value:
+                yield (typ, act, i.val)
+            else:  # argument_is_option_with_value, argument_is_value:
+                wrong_opts &= $i.opt
+        if len(wrong_opt_last) > 0 or len(wrong_opts) > 0:
+            let wrong_arg = "-" & wrong_opts & wrong_opt_last
+            yield (argument_is_value, nil, wrong_arg)
 
 
 proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
@@ -284,7 +303,7 @@ proc parse_known_args*(self: ArgumentParser, args: seq[string]  # {{{1
                 else:
                     next_is_value = act
             of argument_is_value:
-                ret2.add(i)
+                ret2.add(val)
     return (ret1, ret2)
 
 
