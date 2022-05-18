@@ -233,11 +233,25 @@ proc parse_arg_match(acts: seq[OptionsAction], arg: string  # {{{1
 iterator parse_one_arg(acts: seq[OptionsAction], arg: string  # {{{1
                        ): tuple[typ: ArgumentType, act: OptionsAction,
                                 val: string] =
-    for i in parse_arg_with_val(arg):
+    let opts = parse_arg_with_val(arg)
+    if len(opts) < 1:     # ???
+        discard
+    elif len(opts) < 2:   # value or long-name options
+        let i = opts[0]
         if len(i.opt) < 1:
             yield (argument_is_value, nil, i.val)
-            continue
+        else:
+            let (typ, act) = acts.parse_arg_match(i.opt)
+            yield (typ, act, i.val)
+    else:                 # short-name options
+        for i in opts[0..^2]:
+            let (typ, act) = acts.parse_arg_match(i.opt)
+            if typ == argument_is_value:
+                continue
+            yield (typ, act, i.val)
+        let i = opts[^1]
         let (typ, act) = acts.parse_arg_match(i.opt)
+        # when returns argument_is_value, then value will be `arg`, not `i.val`
         yield (typ, act, i.val)
 
 

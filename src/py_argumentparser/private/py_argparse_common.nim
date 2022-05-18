@@ -67,19 +67,19 @@ proc initArgumentParser*(usage = ""): ArgumentParser =  # {{{1
 
 
 proc set_action*(self: OptionsAction, action: ActionFunc  # {{{1
-                 ): OptionsAction =  # {{{1
+                 ): OptionsAction =
     self.action = action
     return self
 
 
 proc set_helptext*(self: OptionsAction, text: string  # {{{1
-                   ): OptionsAction =  # {{{1
+                   ): OptionsAction =
     self.help_text = text
     return self
 
 
 proc set_withoutvalue*(self: OptionsAction, f: bool  # {{{1
-                       ): OptionsAction =  # {{{1
+                       ): OptionsAction =
     self.without_value = f
     return self
 
