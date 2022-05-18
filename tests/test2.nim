@@ -9,10 +9,12 @@ You can obtain one at https://mozilla.org/MPL/2.0/.
 
 ## test matrix
 <<<<<<< HEAD
+<<<<<<< HEAD
 test case                  | impl. | test num., etc
 ---------------------------|-------|-----------
 options '='                | o | 4-1-1
 options by '-abc'          | o | 4-2-1
+undefs by '-abc'           | o | 4-2-2
 ]##
 import unittest
 
@@ -36,6 +38,25 @@ test "T4-2-1 can parse single character options":
     check opts.get_boolean("g") == true
     check opts.get_boolean("h") == true
     check opts.get_string("i") == "1"
+
+
+test "T4-2-2 invalid single character options":
+    var p = initArgumentParser()
+    p.add_argument('g', "g", default=false)
+    p.add_argument('h', "h", default=false)
+    p.add_argument('i', "i", default="")
+    var (opts, vals) = p.parse_known_args(@["-a", "-def=1", "-c"])
+    check vals == @["-a", "-def=1", "-c"]
+
+
+test "T4-2-3 invalid single character options (mixed)":
+    var p = initArgumentParser()
+    p.add_argument('g', "g", default=false)
+    p.add_argument('h', "h", default=false)
+    p.add_argument('i', "i", default="")
+    var (opts, vals) = p.parse_known_args(@["-a", "-dhf=1", "-c"])
+    check opts.get_boolean("h") == true
+    check vals == @["-a", "-dhf=1", "-c"]
 
 
 # end of file {{{1
