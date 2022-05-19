@@ -45,7 +45,9 @@ import py_argumentparser/private/py_argparse_float
 import py_argumentparser/private/py_argparse_int
 import py_argumentparser/private/py_argparse_str
 
+export ActionFunc, ArgumentParser
 export ActionResult, initArgumentParser
+export Options
 export get_boolean, get_float, get_integer, get_string
 export add_argument
 
