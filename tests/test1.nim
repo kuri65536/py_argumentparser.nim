@@ -44,6 +44,7 @@ import unittest
 import py_argumentparser
 
 test "T1-1-1 can parse boolean options(short)":
+  proc tmp() {.gcsafe.} =
     var p = initArgumentParser()
     p.add_argument('b', "", default=false)
     var (opts, vals) = p.parse_known_args(@["-a", "-b", "-c"])
@@ -54,6 +55,7 @@ test "T1-1-1 can parse boolean options(short)":
     (opts, vals) = p.parse_known_args(@["-a", "-b", "-c"])
     check vals == @["-c"]
     check opts.get_boolean("a", false) == true
+  tmp()
 
 test "T1-1-2 can parse boolean options(long)":
     var p = initArgumentParser()
@@ -114,12 +116,12 @@ test "T1-3-1 can parse integer":
     try:
         (opts, vals) = p.parse_known_args(@["--limit", "-1"])
         assert false
-    except:
+    except CatchableError:
         discard
     try:
         (opts, vals) = p.parse_known_args(@["--limit", "11"])
         assert false
-    except:
+    except CatchableError:
         discard
 
 test "T1-3-2 can parse combined opts":

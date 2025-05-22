@@ -26,7 +26,7 @@ type  # {{{1
     ok = 0
 
   ActionFunc* = proc(key, val: string
-          ): ActionResult {.gcsafe, locks: "unknown"}
+          ): ActionResult {.gcsafe, locks: "unknown".}
 
   OptionsAction* = ref object of RootObj  # {{{1
     short_name: char
